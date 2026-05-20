@@ -604,9 +604,10 @@ function loadFrameAtTime(time, callback) {
 }
 
 // ============ Upload ============
-document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
-document.getElementById('uploadZone').addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
-document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); });
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); });
 document.getElementById('videoInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) handleUpload(f); });
 
 function handleUpload(file) {
