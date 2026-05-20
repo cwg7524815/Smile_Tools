@@ -3,397 +3,197 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>视频转序列帧表 - 纯前端版</title>
+<title>视频转序列帧表</title>
 <style>
 :root {
-    --bg: #0d0d1a;
-    --bg2: #131328;
-    --card: #1a1a30;
-    --card2: #1f1f38;
-    --border: #2a2a4a;
-    --border2: #3a3a5a;
-    --accent: #7b61ff;
-    --accent2: #9d8aff;
-    --text: #e8e8f0;
-    --text2: #8888aa;
-    --text3: #555577;
-    --success: #4ecdc4;
-    --danger: #ff6b6b;
+    --bg: #0d0d1a; --bg2: #131328; --card: #1a1a30; --card2: #1f1f38;
+    --border: #2a2a4a; --border2: #3a3a5a; --accent: #7b61ff; --accent2: #9d8aff;
+    --text: #e8e8f0; --text2: #8888aa; --text3: #555577; --success: #4ecdc4; --danger: #ff6b6b;
     --radius: 10px;
-    --shadow: 0 6px 24px rgba(0,0,0,0.35);
 }
 * { margin:0; padding:0; box-sizing:border-box; }
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    line-height: 1.5;
-}
-
-/* ===== Header ===== */
-.header {
-    text-align: center;
-    padding: 30px 20px 20px;
-}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+.header { text-align: center; padding: 30px 20px 20px; }
 .header .logo { font-size: 2.5rem; margin-bottom: 4px; }
 .header h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: 2px; }
 .header .sub { color: var(--text3); font-size: 0.82rem; margin-top: 4px; }
-
-/* ===== Container ===== */
-.container { max-width: 1100px; margin:0 auto; padding: 0 16px 40px; }
-
-/* ===== Card ===== */
-.card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 20px;
-    overflow: hidden;
-}
-.card-head {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    font-weight: 600;
-    font-size: 0.95rem;
-    display: flex; align-items: center; gap: 8px;
-}
+.container { max-width: 1100px; margin: 0 auto; padding: 0 16px 40px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+.card-head { padding: 16px 20px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; }
 .card-body { padding: 20px; }
-
-/* ===== Steps ===== */
-.steps {
-    display: flex; justify-content: center; gap: 8px;
-    margin-bottom: 28px; flex-wrap: wrap;
-}
-.step {
-    background: var(--card2);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 8px 16px;
-    font-size: 0.82rem;
-    color: var(--text2);
-    transition: all 0.2s;
-}
-.step.active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-}
-.step.done {
-    background: var(--success);
-    border-color: var(--success);
-    color: white;
-}
-
-/* ===== Upload Area ===== */
-.upload-area {
-    border: 2px dashed var(--border2);
-    border-radius: var(--radius);
-    padding: 50px 30px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.upload-area:hover, .upload-area.dragover {
-    border-color: var(--accent);
-    background: rgba(123,97,255,0.05);
-}
-.upload-area .icon { font-size: 3rem; margin-bottom: 12px; }
-.upload-area .title { font-size: 1.1rem; margin-bottom: 6px; }
-.upload-area .sub { font-size: 0.82rem; color: var(--text2); }
-.upload-area input { display: none; }
-
-/* ===== Video Preview ===== */
-.video-container {
-    position: relative;
-    background: var(--bg2);
-    border-radius: var(--radius);
-    overflow: hidden;
-    display: none;
-}
-.video-container.show { display: block; }
-.video-container video {
-    width: 100%;
-    max-height: 400px;
-    display: block;
-}
-.video-controls {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-    padding: 20px 16px 12px;
-}
-.video-controls .progress-bar {
-    width: 100%;
-    height: 6px;
-    background: rgba(255,255,255,0.2);
-    border-radius: 3px;
-    cursor: pointer;
-    margin-bottom: 10px;
-}
-.video-controls .progress-bar .fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 3px;
-    width: 0%;
-    transition: width 0.1s;
-}
-.video-controls .time {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.78rem;
-    color: rgba(255,255,255,0.7);
-}
-.video-controls .btns {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 10px;
-}
-.video-controls .btn-icon {
-    width: 36px; height: 36px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    border: none;
-    color: white;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    transition: background 0.2s;
-}
-.video-controls .btn-icon:hover { background: rgba(255,255,255,0.3); }
-
-/* ===== Settings ===== */
-.settings-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
-}
-.setting-item {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px 16px;
-}
-.setting-item label {
-    display: block;
-    font-size: 0.78rem;
-    color: var(--text2);
-    margin-bottom: 6px;
-}
-.setting-item input, .setting-item select {
-    width: 100%;
-    background: var(--card);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-size: 0.9rem;
-}
-.setting-item input:focus, .setting-item select:focus {
-    outline: none;
-    border-color: var(--accent);
-}
-.setting-item input[type="range"] {
-    padding: 0;
-    height: 6px;
-    -webkit-appearance: none;
-    background: var(--border);
-    cursor: pointer;
-}
-.setting-item input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-}
-.range-value {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: var(--text2);
-    margin-top: 4px;
-}
-
-/* ===== Button ===== */
-.btn {
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    padding: 12px 28px;
-    font-size: 0.95rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: inline-flex; align-items: center; gap: 8px;
-}
-.btn:hover { background: var(--accent2); transform: translateY(-1px); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-.btn-secondary {
-    background: var(--card2);
-    border: 1px solid var(--border2);
-}
-.btn-secondary:hover { background: var(--border); }
-
-/* ===== Timeline ===== */
-.timeline-container {
-    background: var(--bg2);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 16px;
-}
-.timeline-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-.timeline {
-    position: relative;
-    height: 60px;
-    background: var(--card);
-    border-radius: 6px;
-    overflow: hidden;
-}
-.timeline-thumb {
-    position: absolute;
-    top: 0; bottom: 0;
-    background: rgba(123,97,255,0.3);
-    border-left: 2px solid var(--accent);
-    cursor: ew-resize;
-}
-.timeline-thumb.start { border-left: none; border-right: 2px solid var(--accent); }
-.timeline .playhead {
-    position: absolute;
-    top: 0; bottom: 0;
-    width: 2px;
-    background: var(--danger);
-    pointer-events: none;
-    z-index: 10;
-}
-.timeline .playhead::before {
-    content: '';
-    position: absolute;
-    top: -4px;
-    left: -4px;
-    width: 10px; height: 10px;
-    background: var(--danger);
-    border-radius: 50%;
-}
-
-/* ===== Frame Preview ===== */
-.frame-preview {
-    background: var(--bg2);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 16px;
-    text-align: center;
-}
-.frame-preview canvas {
-    max-width: 100%;
-    background: black;
-    border-radius: 6px;
-}
-.frame-info {
-    display: flex;
-    justify-content: center;
-    gap: 20px;
-    margin-top: 12px;
-    font-size: 0.82rem;
-    color: var(--text2);
-}
-
-/* ===== Output ===== */
-.output-area {
-    display: none;
-}
-.output-area.show { display: block; }
-.output-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
-    margin-bottom: 20px;
-}
-.output-frame {
-    position: relative;
-    aspect-ratio: 16/9;
-    background: var(--bg2);
-    border-radius: 6px;
-    overflow: hidden;
-}
-.output-frame img {
-    width: 100%; height: 100%;
-    object-fit: contain;
-    background: black;
-}
-.output-frame .frame-num {
-    position: absolute;
-    bottom: 4px; right: 4px;
-    background: rgba(0,0,0,0.7);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.7rem;
-}
-.download-btns {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-/* ===== Progress ===== */
-.progress-container {
-    display: none;
-    margin: 20px 0;
-}
-.progress-container.show { display: block; }
-.progress-bar {
-    height: 8px;
-    background: var(--border);
-    border-radius: 4px;
-    overflow: hidden;
-}
-.progress-bar .fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent), var(--success));
-    transition: width 0.3s;
-}
-.progress-text {
-    text-align: center;
-    margin-top: 10px;
-    font-size: 0.85rem;
-    color: var(--text2);
-}
-
-/* ===== Log ===== */
-.log-box {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    font-family: 'Fira Code', 'Consolas', monospace;
-    font-size: 0.78rem;
-    max-height: 200px;
-    overflow-y: auto;
-    display: none;
-}
-.log-box.show { display: block; }
-.log-box .log-line { padding: 2px 0; }
-.log-box .log-time { color: var(--text3); margin-right: 8px; }
-.log-box .log-info { color: var(--success); }
-.log-box .log-warn { color: #ffc107; }
-.log-box .log-error { color: var(--danger); }
-
-/* ===== Responsive ===== */
-@media (max-width: 600px) {
-    .settings-grid { grid-template-columns: 1fr; }
-    .steps { gap: 4px; }
-    .step { padding: 6px 12px; font-size: 0.75rem; }
-}
+.steps { display: flex; justify-content: center; gap: 8px; margin-bottom: 28px; flex-wrap: wrap; }
+.step { display: flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: 18px; background: var(--bg2); border: 1px solid var(--border); font-size: 0.8rem; color: var(--text3); transition: all 0.3s; }
+.step.active { background: rgba(123,97,255,0.12); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 16px rgba(123,97,255,0.2); }
+.step.done { background: rgba(78,205,196,0.08); border-color: var(--success); color: var(--success); }
+.step .num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; background: var(--border); }
+.step.active .num { background: var(--accent); color: white; }
+.step.done .num { background: var(--success); color: white; }
+.upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 50px 20px; text-align: center; cursor: pointer; transition: all 0.3s; position: relative; }
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(123,97,255,0.04); box-shadow: 0 0 30px rgba(123,97,255,0.1); }
+.upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.upload-zone .icon { font-size: 3rem; margin-bottom: 12px; }
+.upload-zone .txt { font-size: 1rem; margin-bottom: 6px; }
+.upload-zone .hint { font-size: 0.78rem; color: var(--text3); }
+.video-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 14px; margin-top: 18px; padding: 18px; background: rgba(123,97,255,0.04); border-radius: var(--radius); border: 1px solid rgba(123,97,255,0.15); }
+.meta-item { display: flex; flex-direction: column; gap: 2px; }
+.meta-label { font-size: 0.7rem; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+.meta-val { font-size: 1rem; font-weight: 700; color: var(--accent); }
+.change-btn { margin-top: 12px; text-align: right; }
+.change-btn button { background: none; border: none; color: var(--text2); font-size: 0.78rem; cursor: pointer; text-decoration: underline; }
+.change-btn button:hover { color: var(--danger); }
+.crop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 700px) { .crop-grid { grid-template-columns: 1fr; } }
+.crop-panel { display: flex; flex-direction: column; gap: 8px; }
+.crop-panel .label { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
+.crop-panel .hint { font-size: 0.72rem; color: var(--text3); }
+.crop-canvas-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #0a0a16; display: flex; justify-content: center; align-items: center; min-height: 300px; }
+.crop-canvas-wrap video { max-width: 100%; max-height: 320px; display: block; }
+.crop-box { position: absolute; border: 2px solid var(--accent); background: rgba(123,97,255,0.08); cursor: move; pointer-events: auto; display: none; }
+.crop-box.active { display: block; }
+.crop-box .handle { position: absolute; width: 10px; height: 10px; background: var(--accent); border: 2px solid white; border-radius: 50%; }
+.crop-box .handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+.crop-box .handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+.crop-box .handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+.crop-box .handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+.crop-box .gridline { position: absolute; background: rgba(255,255,255,0.2); pointer-events: none; }
+.crop-tune { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.tune-field { display: flex; flex-direction: column; gap: 4px; }
+.tune-field label { font-size: 0.72rem; color: var(--text3); }
+.tune-field input { padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.82rem; outline: none; font-family: monospace; }
+.tune-field input:focus { border-color: var(--accent); }
+.preview-canvas-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #0a0a16; display: flex; justify-content: center; align-items: center; min-height: 300px; }
+.preview-canvas-wrap canvas { max-width: 100%; max-height: 320px; display: block; }
+.preview-size { text-align: center; font-size: 0.82rem; color: var(--text2); margin-top: 8px; }
+.segment-slider-wrap { padding: 20px 10px; }
+.segment-slider-track { position: relative; height: 6px; background: var(--bg2); border-radius: 3px; margin: 30px 0 20px; }
+.segment-slider-range { position: absolute; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 3px; top: 0; }
+.segment-slider-thumb { position: absolute; width: 16px; height: 16px; background: var(--accent); border: 2px solid white; border-radius: 50%; top: 50%; transform: translate(-50%, -50%); cursor: pointer; box-shadow: 0 0 8px rgba(123,97,255,0.4); z-index: 2; }
+.segment-slider-thumb::after { content: attr(data-label); position: absolute; top: -26px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.65rem; white-space: nowrap; pointer-events: none; }
+.segment-times { display: flex; justify-content: space-between; margin-top: 10px; }
+.segment-time-input { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.segment-time-input input { padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.82rem; font-family: monospace; width: 110px; text-align: center; }
+.segment-time-input label { font-size: 0.7rem; color: var(--text3); }
+.fps-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+@media (max-width: 700px) { .fps-section { grid-template-columns: 1fr; } }
+.fps-input-wrap { display: flex; flex-direction: column; gap: 8px; }
+.fps-input-wrap label { font-size: 0.82rem; color: var(--text2); }
+.fps-input-wrap input { padding: 10px 12px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 1rem; font-family: monospace; outline: none; width: 100%; }
+.fps-input-wrap input:focus { border-color: var(--accent); }
+.result-preview { display: flex; flex-direction: column; gap: 6px; padding: 16px; background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); }
+.result-preview .label { font-size: 0.72rem; color: var(--text3); }
+.result-preview .big { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+.result-preview .small { font-size: 0.82rem; color: var(--text2); }
+.masking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 800px) { .masking-grid { grid-template-columns: 1fr; } }
+.masking-panel { display: flex; flex-direction: column; gap: 8px; }
+.masking-panel .label { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
+.masking-panel .hint { font-size: 0.72rem; color: var(--text3); }
+.ref-frame-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #0a0a16; display: flex; justify-content: center; align-items: center; min-height: 300px; cursor: crosshair; }
+.ref-frame-wrap canvas { max-width: 100%; max-height: 340px; display: block; }
+.sample-indicator { position: absolute; width: 20px; height: 20px; border: 2px solid var(--accent); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); display: none; box-shadow: 0 0 0 2px rgba(0,0,0,0.5), 0 0 8px var(--accent); }
+.sample-indicator::before, .sample-indicator::after { content: ''; position: absolute; background: var(--accent); pointer-events: none; }
+.sample-indicator::before { width: 2px; height: 14px; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.sample-indicator::after { width: 14px; height: 2px; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.sample-indicator.active { display: block; }
+.mask-canvas { position: absolute; pointer-events: none; z-index: 5; }
+.ref-frame-wrap.brush-mode { cursor: crosshair; }
+.ref-frame-wrap.brush-mode .mask-canvas { pointer-events: all; }
+.brush-toolbar { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.brush-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); font-size: 0.72rem; cursor: pointer; transition: all 0.2s; }
+.brush-btn:hover { border-color: var(--accent2); color: var(--text); }
+.brush-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+.brush-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.brush-size-wrap { display: flex; align-items: center; gap: 4px; }
+.brush-size-wrap input[type="range"] { width: 60px; }
+.brush-size-wrap span { font-size: 0.72rem; color: var(--text3); }
+.color-sample-box { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); }
+.color-sample-swatch { width: 36px; height: 36px; border-radius: 6px; border: 2px solid var(--border); flex-shrink: 0; }
+.color-sample-info { flex: 1; }
+.color-sample-rgb { font-size: 0.85rem; font-weight: 600; }
+.color-sample-pos { font-size: 0.72rem; color: var(--text3); }
+.masking-preview-wrap { position: relative; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #0a0a16; display: flex; justify-content: center; align-items: center; min-height: 300px; }
+.masking-preview-wrap canvas { max-width: 100%; max-height: 340px; display: block; }
+.preview-tabs { display: flex; gap: 4px; }
+.preview-tab { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); font-size: 0.78rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.preview-tab:hover { border-color: var(--accent2); color: var(--text); }
+.preview-tab.active { background: rgba(123,97,255,0.15); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.solid-bg-check { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.solid-bg-check label { font-size: 0.78rem; color: var(--text3); }
+.masking-params { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 600px) { .masking-params { grid-template-columns: 1fr; } }
+.masking-param { display: flex; flex-direction: column; gap: 6px; }
+.masking-param label { font-size: 0.82rem; font-weight: 600; color: var(--text2); display: flex; justify-content: space-between; }
+.masking-param .val { color: var(--accent); font-weight: 600; }
+.masking-param input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; background: var(--bg2); border-radius: 2px; outline: none; cursor: pointer; width: 100%; }
+.masking-param input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.masking-param .desc { font-size: 0.72rem; color: var(--text3); }
+.masking-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.masking-output-mode { margin-top: 16px; padding: 14px; background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); }
+.masking-output-mode .title { font-size: 0.82rem; font-weight: 600; color: var(--text2); margin-bottom: 10px; }
+.params-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media (max-width: 700px) { .params-grid { grid-template-columns: 1fr 1fr; } }
+.param-field { display: flex; flex-direction: column; gap: 4px; }
+.param-field label { font-size: 0.72rem; color: var(--text3); display: flex; justify-content: space-between; }
+.param-field label .val { color: var(--accent); font-weight: 600; }
+.param-field input, .param-field select { padding: 8px 10px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.82rem; outline: none; width: 100%; }
+.param-field input:focus, .param-field select:focus { border-color: var(--accent); }
+input[type="range"] { -webkit-appearance: none; appearance: none; height: 4px; background: var(--bg2); border-radius: 2px; outline: none; cursor: pointer; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+.color-wrap { display: flex; align-items: center; gap: 8px; }
+input[type="color"] { width: 36px; height: 36px; border: 1px solid var(--border); border-radius: 6px; padding: 2px; background: var(--bg2); cursor: pointer; }
+.color-hex { font-family: monospace; font-size: 0.78rem; color: var(--text2); }
+.toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.toggle-row:last-child { border-bottom: none; }
+.toggle-label { font-size: 0.82rem; color: var(--text2); }
+.toggle-sublabel { font-size: 0.72rem; color: var(--text3); margin-left: 6px; }
+.toggle { position: relative; width: 42px; height: 22px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-track { position: absolute; inset: 0; background: var(--bg2); border-radius: 11px; border: 1px solid var(--border); transition: all 0.3s; }
+.toggle-track::before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; top: 2px; left: 2px; background: var(--text3); transition: all 0.3s; }
+.toggle input:checked + .toggle-track { background: rgba(123,97,255,0.3); border-color: var(--accent); }
+.toggle input:checked + .toggle-track::before { transform: translateX(20px); background: var(--accent); }
+.btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--accent), #8b5cf6); color: white; border: none; border-radius: var(--radius); font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 16px rgba(123,97,255,0.3); }
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(123,97,255,0.5); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-secondary { flex: 1; padding: 12px; background: var(--bg2); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.btn-secondary:hover { border-color: var(--accent); background: rgba(123,97,255,0.08); }
+.btn-clear { padding: 6px 14px; background: var(--bg2); color: var(--text2); border: 1px solid var(--border); border-radius: 6px; font-size: 0.78rem; cursor: pointer; white-space: nowrap; }
+.btn-clear:hover { border-color: var(--danger); color: var(--danger); }
+.progress-bar-wrap { height: 6px; background: var(--bg2); border-radius: 3px; overflow: hidden; margin: 16px 0; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--success)); width: 0%; transition: width 0.3s; }
+.progress-text { text-align: center; font-size: 0.8rem; color: var(--text3); }
+.error-box { display: none; padding: 12px 16px; background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25); border-radius: 6px; color: var(--danger); font-size: 0.82rem; margin-top: 12px; }
+.error-box.show { display: flex; gap: 6px; align-items: center; }
+.hidden { display: none !important; }
+.toolbar-invisible { visibility: hidden !important; pointer-events: none; }
+.sheet-preview-wrap { border-radius: var(--radius); overflow: auto; border: 1px solid var(--border); background: #0a0a16; max-height: 520px; display: flex; justify-content: center; align-items: flex-start; padding: 16px; }
+.sheet-preview-wrap canvas { image-rendering: pixelated; transition: transform 0.2s; transform-origin: center top; }
+.anim-preview-wrap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); background: #0a0a16; display: flex; justify-content: center; align-items: center; min-height: 280px; padding: 16px; }
+.anim-preview-wrap canvas { max-width: 100%; max-height: 400px; display: block; image-rendering: pixelated; }
+.anim-controls { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 12px 16px; background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); }
+.anim-slider-wrap { flex: 1; }
+.anim-slider-wrap input[type="range"] { width: 100%; }
+.fps-select { display: flex; align-items: center; gap: 6px; }
+.export-params { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+@media (max-width: 700px) { .export-params { grid-template-columns: 1fr 1fr; } }
+.export-info { padding: 16px; background: var(--bg2); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 20px; }
+.export-info .label { font-size: 0.72rem; color: var(--text3); }
+.export-info .big { font-size: 1.4rem; font-weight: 700; color: var(--accent); margin-top: 4px; }
+.export-info .small { font-size: 0.82rem; color: var(--text2); margin-top: 4px; }
+.export-actions { display: flex; flex-direction: column; gap: 10px; }
+.btn-export-png { width: 100%; padding: 12px; background: linear-gradient(135deg, #7b61ff, #8b5cf6); color: white; border: none; border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.btn-export-png:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(123,97,255,0.4); }
+.btn-export-gif { width: 100%; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.btn-export-gif:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(245,158,11,0.4); }
+.btn-export-gif:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-export-zip { width: 100%; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: var(--radius); font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+.btn-export-zip:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.4); }
+.gif-worker-notice { padding: 8px 12px; background: rgba(123,97,255,0.08); border: 1px solid rgba(123,97,255,0.2); border-radius: 6px; font-size: 0.75rem; color: var(--text2); margin-top: 8px; }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+.footer { text-align: center; padding: 30px; color: var(--text3); font-size: 0.75rem; }
 </style>
 </head>
 <body>
@@ -401,642 +201,1248 @@ body {
 <div class="header">
     <div class="logo">🎬</div>
     <h1>视频转序列帧表</h1>
-    <div class="sub">纯前端版 · 完全本地处理 · 无需上传</div>
+    <div class="sub">纯前端版本 · 所有处理在本地完成 · 无需服务器</div>
 </div>
 
 <div class="container">
-    <!-- Steps -->
-    <div class="steps">
-        <div class="step active" data-step="1">① 选视频</div>
-        <div class="step" data-step="2">② 截片段</div>
-        <div class="step" data-step="3">③ 设参数</div>
-        <div class="step" data-step="4">④ 生成帧表</div>
-        <div class="step" data-step="5">⑤ 下载结果</div>
-    </div>
+<div class="steps">
+    <div class="step active" id="step1"><span class="num">1</span><span>上传视频</span></div>
+    <div class="step" id="step2"><span class="num">2</span><span>画面裁剪</span></div>
+    <div class="step" id="step3"><span class="num">3</span><span>片段与抽帧</span></div>
+    <div class="step" id="step4"><span class="num">4</span><span>参考帧与抠像</span></div>
+    <div class="step" id="step5"><span class="num">5</span><span>序列图预览</span></div>
+    <div class="step" id="step6"><span class="num">6</span><span>导出结果</span></div>
+</div>
 
-    <!-- Step 1: Upload -->
-    <div class="card" id="card-upload">
-        <div class="card-head">📁 选择本地视频文件</div>
-        <div class="card-body">
-            <div class="upload-area" id="uploadArea">
-                <div class="icon">📂</div>
-                <div class="title">点击选择视频文件 或 拖拽到此处</div>
-                <div class="sub">支持 MP4, AVI, MOV, MKV, WEBM 等格式</div>
-                <input type="file" id="fileInput" accept="video/*">
+<div class="card" id="uploadCard">
+    <div class="card-head">📁 上传视频文件</div>
+    <div class="card-body">
+        <div class="upload-zone" id="uploadZone">
+            <input type="file" id="videoInput" accept="video/*">
+            <div class="icon">🎥</div>
+            <div class="txt">点击或拖拽上传视频</div>
+            <div class="hint">支持 MP4 / AVI / MOV / MKV / WEBM，建议 100MB 以内</div>
+        </div>
+        <div class="video-meta hidden" id="videoMeta"></div>
+        <div class="change-btn hidden" id="changeBtnWrap"><button id="changeVideoBtn">✕ 更换视频</button></div>
+        <div class="error-box" id="uploadError"><span>⚠️</span><span id="uploadErrorText"></span></div>
+    </div>
+</div>
+
+<div class="card hidden" id="cropCard">
+    <div class="card-head">✂️ 画面裁剪</div>
+    <div class="card-body">
+        <div class="crop-grid">
+            <div class="crop-panel">
+                <div class="label">鼠标框选裁剪</div>
+                <div class="hint">在参考画面上拖拽，直接选择要保留的区域</div>
+                <div class="crop-canvas-wrap" id="cropCanvasWrap">
+                    <video id="cropSourceVideo" muted playsinline></video>
+                    <div class="crop-box" id="cropBox">
+                        <div class="handle nw"></div><div class="handle ne"></div>
+                        <div class="handle sw"></div><div class="handle se"></div>
+                        <div class="gridline" style="width:33%;height:100%;left:33%;"></div>
+                        <div class="gridline" style="width:33%;height:100%;left:66%;"></div>
+                        <div class="gridline" style="width:100%;height:33%;top:33%;"></div>
+                        <div class="gridline" style="width:100%;height:33%;top:66%;"></div>
+                    </div>
+                </div>
             </div>
-            <div class="video-container" id="videoContainer">
-                <video id="video" preload="metadata"></video>
-                <div class="video-controls">
-                    <div class="progress-bar" id="videoProgressBar">
-                        <div class="fill" id="videoProgressFill"></div>
-                    </div>
-                    <div class="time">
-                        <span id="currentTime">00:00.000</span>
-                        <span id="duration">00:00.000</span>
-                    </div>
-                    <div class="btns">
-                        <button class="btn-icon" id="btnPlayPause" title="播放/暂停">▶</button>
-                        <button class="btn-icon" id="btnStepBack" title="后退1秒">⏪</button>
-                        <button class="btn-icon" id="btnStepForward" title="前进1秒">⏩</button>
-                        <button class="btn-icon" id="btnChangeVideo" title="更换视频">🔄</button>
-                    </div>
+            <div class="crop-panel">
+                <div class="label">裁剪预览</div>
+                <div class="hint">实时显示裁剪后的输出画面</div>
+                <div class="preview-canvas-wrap" id="previewWrap"><canvas id="cropPreviewCanvas"></canvas></div>
+                <div class="preview-size" id="previewSize">当前输出尺寸：—</div>
+            </div>
+        </div>
+        <div style="margin-top:20px;">
+            <div class="label" style="font-size:0.85rem; font-weight:600; margin-bottom:10px;">数值精确微调</div>
+            <div class="crop-tune">
+                <div class="tune-field"><label>左侧偏移 (%)</label><input type="number" id="cropLeft" value="0" min="0" max="100" step="0.01"></div>
+                <div class="tune-field"><label>顶部偏移 (%)</label><input type="number" id="cropTop" value="0" min="0" max="100" step="0.01"></div>
+                <div class="tune-field"><label>裁剪宽度 (%)</label><input type="number" id="cropWidth" value="100" min="1" max="100" step="0.01"></div>
+                <div class="tune-field"><label>裁剪高度 (%)</label><input type="number" id="cropHeight" value="100" min="1" max="100" step="0.01"></div>
+            </div>
+            <div style="text-align:right; margin-top:10px;"><button class="btn-secondary" id="resetCropBtn">重置裁剪</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="card hidden" id="segmentCard">
+    <div class="card-head">⏱️ 视频片段与提取帧</div>
+    <div class="card-body">
+        <div style="margin-bottom:24px;">
+            <div class="label" style="font-size:0.85rem; font-weight:600; margin-bottom:10px;">视频片段</div>
+            <div class="segment-slider-wrap">
+                <div class="segment-slider-track" id="segmentTrack">
+                    <div class="segment-slider-range" id="segmentRange"></div>
+                    <div class="segment-slider-thumb" id="thumbStart" data-label="开始"></div>
+                    <div class="segment-slider-thumb" id="thumbEnd" data-label="结束"></div>
+                </div>
+                <div class="segment-times">
+                    <div class="segment-time-input"><label>开始</label><input type="text" id="segStartInput" value="00:00.000" readonly></div>
+                    <div class="segment-time-input"><label>结束</label><input type="text" id="segEndInput" value="00:00.000" readonly></div>
+                    <div class="segment-time-input"><label>片段长度</label><input type="text" id="segDurationInput" value="0.00 秒" readonly></div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Step 2: Timeline -->
-    <div class="card" id="card-timeline">
-        <div class="card-head">✂️ 选取片段（可选）</div>
-        <div class="card-body">
-            <div class="timeline-container">
-                <div class="timeline-header">
-                    <span>拖动左右滑块选择处理范围</span>
-                    <span id="selectionInfo">全片</span>
-                </div>
-                <div class="timeline" id="timeline">
-                    <div class="timeline-thumb start" id="thumbStart"></div>
-                    <div class="timeline-thumb end" id="thumbEnd"></div>
-                    <div class="playhead" id="playhead"></div>
-                </div>
+        <div class="fps-section">
+            <div class="fps-input-wrap">
+                <label>每秒提取帧数</label>
+                <input type="number" id="extractFps" value="12" min="1" max="120" step="1">
+                <div style="font-size:0.72rem; color:var(--text3); margin-top:4px;">片段时长 × FPS = 预计提取帧数</div>
             </div>
-            <div class="frame-preview">
-                <canvas id="previewCanvas"></canvas>
-                <div class="frame-info">
-                    <span>当前帧: <strong id="frameNum">0</strong></span>
-                    <span>时间: <strong id="frameTime">00:00.000</strong></span>
-                </div>
-            </div>
-            <div style="text-align: center;">
-                <button class="btn" id="btnNextStep2">下一步：设置参数 →</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 3: Settings -->
-    <div class="card" id="card-settings">
-        <div class="card-head">⚙️ 抽帧参数</div>
-        <div class="card-body">
-            <div class="settings-grid">
-                <div class="setting-item">
-                    <label>每 N 帧抽 1 帧</label>
-                    <input type="range" id="frameInterval" min="1" max="30" value="5">
-                    <div class="range-value">
-                        <span>每帧</span>
-                        <span id="frameIntervalVal">5帧</span>
-                    </div>
-                </div>
-                <div class="setting-item">
-                    <label>每行帧数</label>
-                    <input type="range" id="framesPerRow" min="2" max="12" value="6">
-                    <div class="range-value">
-                        <span>2</span>
-                        <span id="framesPerRowVal">6</span>
-                    </div>
-                </div>
-                <div class="setting-item">
-                    <label>缩放比例</label>
-                    <input type="range" id="scale" min="25" max="100" value="50">
-                    <div class="range-value">
-                        <span>25%</span>
-                        <span id="scaleVal">50%</span>
-                    </div>
-                </div>
-                <div class="setting-item">
-                    <label>图像质量</label>
-                    <select id="quality">
-                        <option value="0.3">低（体积小）</option>
-                        <option value="0.6" selected>中（推荐）</option>
-                        <option value="0.85">高（清晰）</option>
-                        <option value="1.0">最高</option>
-                    </select>
-                </div>
-            </div>
-            <div style="margin-top: 20px; text-align: center;">
-                <button class="btn" id="btnGenerate">🎬 开始生成帧表</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Progress -->
-    <div class="progress-container" id="progressContainer">
-        <div class="progress-bar">
-            <div class="fill" id="progressFill"></div>
-        </div>
-        <div class="progress-text" id="progressText">准备中...</div>
-    </div>
-
-    <!-- Log -->
-    <div class="log-box" id="logBox"></div>
-
-    <!-- Step 4-5: Output -->
-    <div class="card output-area" id="card-output">
-        <div class="card-head">📊 生成结果</div>
-        <div class="card-body">
-            <div class="output-grid" id="outputGrid"></div>
-            <div class="download-btns">
-                <button class="btn" id="btnDownloadImage">📷 下载帧表图片</button>
-                <button class="btn btn-secondary" id="btnDownloadZip">📦 下载所有帧 (ZIP)</button>
-                <button class="btn btn-secondary" id="btnReset">🔄 处理新视频</button>
+            <div class="result-preview">
+                <div class="label">预计结果</div>
+                <div class="big" id="estFrames">— 帧</div>
+                <div class="small" id="estDuration">— 秒片段</div>
             </div>
         </div>
     </div>
 </div>
 
+<div class="card hidden" id="mattingCard">
+    <div class="card-head">🎯 参考帧与抠像预览</div>
+    <div class="card-body">
+        <div style="margin-bottom:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span class="label" style="font-size:0.85rem; font-weight:600;">参考帧时间</span>
+                <span style="font-size:0.78rem; color:var(--text2); font-family:monospace;" id="refTimeDisplay">00:00.000</span>
+            </div>
+            <div class="segment-slider-track" id="refFrameTrack" style="margin:10px 0;">
+                <div class="segment-slider-range" id="refFrameRange" style="width:0%;"></div>
+                <div class="segment-slider-thumb" id="refFrameThumb" data-label="参考帧" style="left:0%;"></div>
+            </div>
+            <div style="font-size:0.72rem; color:var(--text3);"><span id="refFrameRangeText">00:00.000 - 00:00.000 片段内取色</span></div>
+        </div>
+
+        <div class="color-sample-box" id="colorSampleBox" style="margin-bottom:16px;">
+            <div class="color-sample-swatch" id="colorSwatch" style="background:#000;"></div>
+            <div class="color-sample-info">
+                <div class="color-sample-rgb" id="colorSampleRgb">尚未选择背景色</div>
+                <div class="color-sample-pos" id="colorSamplePos">在左侧画面点击背景进行取色</div>
+            </div>
+            <button class="btn-clear" id="clearColorBtn">清除颜色</button>
+        </div>
+
+        <div class="masking-grid">
+            <div class="masking-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:nowrap; gap:6px;">
+                    <div class="label">原图</div>
+                    <div class="brush-toolbar" id="brushToolbar">
+                        <button class="brush-btn active" id="toolSample" data-tool="sample">🎯 取色</button>
+                        <button class="brush-btn" id="toolBrush" data-tool="brush">🖌️ 保护画笔</button>
+                        <button class="brush-btn" id="toolErase" data-tool="erase">🧼 删除画笔</button>
+                        <span class="brush-size-wrap toolbar-invisible" id="brushSizeWrap">
+                            <input type="range" id="brushSize" min="3" max="50" value="12"><span id="brushSizeVal">12px</span>
+                        </span>
+                        <button class="brush-btn toolbar-invisible" id="undoMaskBtn" title="上一步" disabled>↶</button>
+                        <button class="brush-btn toolbar-invisible" id="redoMaskBtn" title="下一步" disabled>↷</button>
+                        <button class="brush-btn toolbar-invisible" id="clearMaskBtn">清除画笔</button>
+                    </div>
+                </div>
+                <div class="ref-frame-wrap" id="refFrameWrap">
+                    <canvas id="refCanvas"></canvas>
+                    <canvas id="maskCanvas" class="mask-canvas"></canvas>
+                    <div class="sample-indicator" id="sampleIndicator"></div>
+                </div>
+                <div style="margin-top:8px; font-size:0.78rem; color:var(--text3);">当前取样点：<span id="samplePosText" style="color:var(--text2); font-family:monospace;">—</span></div>
+            </div>
+
+            <div class="masking-panel">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="label">抠图预览结果</div>
+                    <div class="preview-tabs">
+                        <button class="preview-tab active" data-mode="result">抠像结果</button>
+                        <button class="preview-tab" data-mode="alpha">Alpha 蒙版</button>
+                        <button class="preview-tab" data-mode="solid">纯色底</button>
+                    </div>
+                </div>
+                <div class="masking-preview-wrap" id="mattingPreviewWrap"><canvas id="mattingPreviewCanvas"></canvas></div>
+                <div class="solid-bg-check" id="solidBgCheck">
+                    <label>纯色底检查色</label>
+                    <input type="color" id="solidBgColor" value="#ffffff"><span class="color-hex" id="solidBgHex">#ffffff</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span class="label" style="font-size:0.9rem; font-weight:600;">高级参数设置</span>
+                <span style="font-size:0.72rem; color:var(--text3);">即时影响右侧预览</span>
+            </div>
+            <div class="masking-params">
+                <div class="masking-param">
+                    <label>颜色容差 <span class="val" id="toleranceVal">10</span></label>
+                    <input type="range" id="tolerance" min="0" max="100" value="10" step="1">
+                    <div class="desc">越大越容易把接近背景色的区域一起抠除。</div>
+                </div>
+                <div class="masking-param">
+                    <label>羽化半径 <span class="val" id="featherVal">2px</span></label>
+                    <input type="range" id="feather" min="0" max="50" value="2" step="1">
+                    <div class="desc">控制边缘从透明到不透明的过渡长度。</div>
+                </div>
+            </div>
+            <div class="masking-toggles">
+                <div class="toggle-row">
+                    <div><span class="toggle-label">边缘平滑</span><span class="toggle-sublabel">对 alpha 蒙版做高斯模糊</span></div>
+                    <label class="toggle"><input type="checkbox" id="edgeSmooth" checked><span class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div><span class="toggle-label">溢色移除</span><span class="toggle-sublabel">降低边缘区域饱和度</span></div>
+                    <label class="toggle"><input type="checkbox" id="spillRemove" checked><span class="toggle-track"></span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="masking-output-mode">
+            <div class="title">生成帧表时的抠像输出方式</div>
+            <div class="params-grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="param-field">
+                    <label>输出模式</label>
+                    <select id="mattingOutputMode">
+                        <option value="transparent">透明背景（保留 Alpha 通道）</option>
+                        <option value="solid">合成到纯色底</option>
+                    </select>
+                </div>
+                <div class="param-field" id="mattingSolidBgField">
+                    <label>合成背景色</label>
+                    <div class="color-wrap">
+                        <input type="color" id="mattingSolidBg" value="#ffffff"><span class="color-hex" id="mattingSolidBgHex">#ffffff</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card hidden" id="layoutCard">
+    <div class="card-head">🧩 帧表布局</div>
+    <div class="card-body">
+        <div style="margin-bottom:20px; padding:16px; background:var(--bg2); border-radius:var(--radius); border:1px solid var(--border);">
+            <div style="font-size:0.85rem; font-weight:600; margin-bottom:12px; color:var(--text2);">📐 帧尺寸设置</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; align-items:end;">
+                <div class="param-field">
+                    <label>尺寸预设</label>
+                    <select id="frameSizePreset">
+                        <option value="32">32 × 32</option>
+                        <option value="64">64 × 64</option>
+                        <option value="128" selected>128 × 128</option>
+                        <option value="256">256 × 256</option>
+                    </select>
+                </div>
+                <div class="param-field">
+                    <label>手动设置宽度 (px)</label>
+                    <input type="number" id="frameWidthManual" value="128" min="16" max="640" step="8">
+                </div>
+            </div>
+        </div>
+
+        <div class="params-grid">
+            <div class="param-field"><label>每行帧数 <span class="val" id="colsVal">8</span></label><input type="range" id="cols" min="1" max="20" value="8" step="1"></div>
+            <div class="param-field"><label>单帧宽度 (px) <span class="val" id="fwVal">128px</span></label><input type="range" id="frameWidth" min="16" max="640" value="128" step="8"></div>
+            <div class="param-field"><label>单帧高度 (px) <span class="val" id="fhVal">128px</span></label><input type="range" id="frameHeight" min="16" max="360" value="128" step="8"></div>
+            <div class="param-field"><label>帧间距 (px) <span class="val" id="padVal">2px</span></label><input type="range" id="padding" min="0" max="20" value="2" step="1"></div>
+            <div class="param-field"><label>背景颜色</label><div class="color-wrap"><input type="color" id="bgColor" value="#1a1a2e"><span class="color-hex" id="bgHex">#1a1a2e</span></div></div>
+            <div class="param-field"><label>输出格式</label><select id="outputFormat"><option value="png">PNG（无损）</option><option value="jpg">JPG（体积小）</option></select></div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <div class="toggle-row">
+                <div><span class="toggle-label">📌 显示时间戳</span><span class="toggle-sublabel">在每帧右下角标注时间</span></div>
+                <label class="toggle"><input type="checkbox" id="includeTs"><span class="toggle-track"></span></label>
+            </div>
+            <div id="tsOptions" class="hidden" style="margin-top:14px;">
+                <div class="params-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="param-field"><label>时间戳颜色</label><div class="color-wrap"><input type="color" id="tsColor" value="#ffffff"><span class="color-hex" id="tsHex">#ffffff</span></div></div>
+                    <div class="param-field"><label>大小 <span class="val" id="tsSizeVal">1.0x</span></label><input type="range" id="tsSize" min="0.5" max="2.0" value="1.0" step="0.1"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card hidden" id="generateCard">
+    <div class="card-head">🚀 生成序列帧表</div>
+    <div class="card-body">
+        <button class="btn-primary" id="generateBtn" disabled>⚡ 开始生成</button>
+        <div id="progressSection" class="hidden">
+            <div class="progress-bar-wrap"><div class="progress-bar" id="progressBar"></div></div>
+            <div class="progress-text" id="progressText">准备中...</div>
+        </div>
+        <div class="error-box" id="genError"><span>⚠️</span><span id="genErrorText"></span></div>
+    </div>
+</div>
+
+<div class="card hidden" id="previewCard">
+    <div class="card-head" style="justify-content:space-between;">
+        <span>🖼️ 序列图预览</span>
+        <span style="font-size:0.78rem; color:var(--text3); font-weight:400;" id="previewMetaText">—</span>
+    </div>
+    <div class="card-body">
+        <div class="preview-tabs" style="margin-bottom:16px;">
+            <button class="preview-tab active" id="tabSheet" data-tab="sheet">序列图</button>
+            <button class="preview-tab" id="tabAnim" data-tab="anim">动画预览</button>
+        </div>
+        <div id="sheetView">
+            <div class="sheet-preview-wrap" id="sheetPreviewWrap"><canvas id="sheetPreviewCanvas"></canvas></div>
+            <div style="display:flex; justify-content:center; gap:8px; margin-top:12px;">
+                <button class="btn-clear" id="zoomOutBtn">− 缩小</button>
+                <span id="zoomLevel" style="font-size:0.82rem; color:var(--text2); line-height:28px;">100%</span>
+                <button class="btn-clear" id="zoomInBtn">+ 放大</button>
+                <button class="btn-clear" id="zoomResetBtn">重置</button>
+            </div>
+        </div>
+        <div id="animView" class="hidden">
+            <div class="anim-preview-wrap"><canvas id="animCanvas"></canvas></div>
+            <div class="anim-controls">
+                <button class="btn-clear" id="animPlayBtn">▶ 播放</button>
+                <button class="btn-clear" id="animPauseBtn" style="display:none;">⏸ 暂停</button>
+                <div class="anim-slider-wrap"><input type="range" id="animFrameSlider" min="0" max="0" value="0" step="1"></div>
+                <span id="animFrameText" style="font-size:0.78rem; color:var(--text2); white-space:nowrap;">0 / 0</span>
+                <div class="fps-select"><label style="font-size:0.72rem; color:var(--text3);">FPS</label><input type="number" id="animPreviewFps" value="12" min="1" max="60" style="width:50px; padding:4px 6px; background:var(--bg2); border:1px solid var(--border); border-radius:4px; color:var(--text); font-size:0.78rem; text-align:center;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card hidden" id="exportCard">
+    <div class="card-head" style="justify-content:space-between;"><span>📦 导出结果</span><span style="font-size:0.78rem; color:var(--text3); font-weight:400;">本地下载</span></div>
+    <div class="card-body">
+        <div style="font-size:0.82rem; color:var(--text2); margin-bottom:16px;">支持导出序列图 PNG、动画 GIF、透明帧 ZIP</div>
+        <div class="export-params">
+            <div class="param-field"><label>导出列数 <span class="val" id="exportColsVal">8</span></label><input type="range" id="exportCols" min="1" max="20" value="8" step="1"></div>
+            <div class="param-field"><label>导出间距 <span class="val" id="exportPadVal">0px</span></label><input type="range" id="exportPadding" min="0" max="20" value="0" step="1"></div>
+            <div class="param-field"><label>单帧尺寸预设</label><select id="exportSizePreset"><option value="original">原始比例</option><option value="half">1/2 尺寸</option><option value="double">2x 尺寸</option></select></div>
+        </div>
+        <div class="export-info">
+            <div class="label">预估导出尺寸</div>
+            <div class="big" id="exportSizeText">— × —</div>
+            <div class="small" id="exportSizeHint">保持原始帧比例尺寸</div>
+        </div>
+        <div class="export-actions">
+            <button class="btn-export-png" id="exportPngBtn">⬇ 下载序列图 PNG</button>
+            <button class="btn-export-gif" id="exportGifBtn">⬇ 下载动画 GIF</button>
+            <button class="btn-export-zip" id="exportZipBtn">⬇ 下载透明单帧 ZIP</button>
+        </div>
+        <div class="gif-worker-notice">💡 GIF 导出使用浏览器本地处理，生成前请确保标签页保持打开状态。</div>
+    </div>
+</div>
+</div>
+
+<div class="footer">纯前端版本 · 所有处理在本地完成 · 无需服务器</div>
+
 <script>
 // ============ State ============
-const state = {
-    video: null,
-    videoFile: null,
-    duration: 0,
-    startTime: 0,
-    endTime: 0,
-    currentTime: 0,
-    isPlaying: false,
-    frames: [],
-    settings: {
-        frameInterval: 5,
-        framesPerRow: 6,
-        scale: 0.5,
-        quality: 0.6
-    }
-};
+let videoEl = null;
+let videoDuration = 0;
+let videoWidth = 0;
+let videoHeight = 0;
+let cropValues = { left: 0, top: 0, width: 100, height: 100 };
+let segmentValues = { start: 0, end: 0 };
+let generatedFrames = [];
+let generatedSheet = null;
 
-// ============ Elements ============
-const els = {
-    uploadArea: document.getElementById('uploadArea'),
-    fileInput: document.getElementById('fileInput'),
-    videoContainer: document.getElementById('videoContainer'),
-    video: document.getElementById('video'),
-    videoProgressBar: document.getElementById('videoProgressBar'),
-    videoProgressFill: document.getElementById('videoProgressFill'),
-    currentTime: document.getElementById('currentTime'),
-    duration: document.getElementById('duration'),
-    btnPlayPause: document.getElementById('btnPlayPause'),
-    btnStepBack: document.getElementById('btnStepBack'),
-    btnStepForward: document.getElementById('btnStepForward'),
-    btnChangeVideo: document.getElementById('btnChangeVideo'),
-    timeline: document.getElementById('timeline'),
-    thumbStart: document.getElementById('thumbStart'),
-    thumbEnd: document.getElementById('thumbEnd'),
-    playhead: document.getElementById('playhead'),
-    selectionInfo: document.getElementById('selectionInfo'),
-    previewCanvas: document.getElementById('previewCanvas'),
-    frameNum: document.getElementById('frameNum'),
-    frameTime: document.getElementById('frameTime'),
-    btnNextStep2: document.getElementById('btnNextStep2'),
-    frameInterval: document.getElementById('frameInterval'),
-    frameIntervalVal: document.getElementById('frameIntervalVal'),
-    framesPerRow: document.getElementById('framesPerRow'),
-    framesPerRowVal: document.getElementById('framesPerRowVal'),
-    scale: document.getElementById('scale'),
-    scaleVal: document.getElementById('scaleVal'),
-    quality: document.getElementById('quality'),
-    btnGenerate: document.getElementById('btnGenerate'),
-    progressContainer: document.getElementById('progressContainer'),
-    progressFill: document.getElementById('progressFill'),
-    progressText: document.getElementById('progressText'),
-    logBox: document.getElementById('logBox'),
-    outputArea: document.getElementById('output-area'),
-    cardOutput: document.getElementById('card-output'),
-    outputGrid: document.getElementById('outputGrid'),
-    btnDownloadImage: document.getElementById('btnDownloadImage'),
-    btnDownloadZip: document.getElementById('btnDownloadZip'),
-    btnReset: document.getElementById('btnReset'),
-    steps: document.querySelectorAll('.step')
+let mattingState = {
+    enabled: false, refTime: 0, sampleX: -1, sampleY: -1, rgb: null, hex: null,
+    tolerance: 10, feather: 2, edgeSmooth: true, spillRemove: true,
+    previewMode: 'result', solidBg: '#ffffff', outputMode: 'transparent', outputSolidBg: '#ffffff'
 };
+let refFrameCtx = null;
+let refFrameNaturalW = 0;
+let refFrameNaturalH = 0;
+let maskHasPaint = false;
+let maskHistory = [];
+let maskHistoryIdx = -1;
+const MAX_MASK_HISTORY = 15;
+let brushState = { tool: 'sample', size: 12, isDrawing: false };
+let animData = null;
+let animTimer = null;
+let animCurrentFrame = 0;
+let animIsPlaying = false;
+let sheetZoom = 1.0;
+let mattingPreviewTimer = null;
+let cropDragging = false, cropResizing = false, cropStartX, cropStartY, cropActive = false;
 
 // ============ Utils ============
-function formatTime(seconds) {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    const ms = Math.floor((seconds % 1) * 1000);
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+const fmtTime = s => {
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60), ms = Math.floor((s % 1) * 1000);
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+};
+const hexToRgb = hex => {
+    const r = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return r ? { r: parseInt(r[1], 16), g: parseInt(r[2], 16), b: parseInt(r[3], 16) } : { r: 255, g: 255, b: 255 };
+};
+const setStep = n => {
+    for (let i = 1; i <= 6; i++) {
+        const el = document.getElementById('step' + i);
+        if (!el) continue;
+        el.className = 'step' + (i < n ? ' done' : '') + (i === n ? ' active' : '');
+    }
+};
+const showCard = id => document.getElementById(id).classList.remove('hidden');
+const hideCard = id => document.getElementById(id).classList.add('hidden');
+const setProgress = (t, p) => {
+    document.getElementById('progressText').textContent = t;
+    document.getElementById('progressBar').style.width = p + '%';
+};
+const showError = (el, msg) => { el.querySelector('span:last-child').textContent = msg; el.classList.add('show'); };
+const hideError = el => el.classList.remove('show');
+
+// ============ Load Frame at Time ============
+function loadFrameAtTime(time, callback) {
+    const tempVideo = document.createElement('video');
+    tempVideo.muted = true; tempVideo.preload = 'auto'; tempVideo.src = videoEl.src;
+    tempVideo.onloadeddata = () => { tempVideo.currentTime = time; };
+    tempVideo.onseeked = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = tempVideo.videoWidth; canvas.height = tempVideo.videoHeight;
+        canvas.getContext('2d').drawImage(tempVideo, 0, 0);
+        callback(canvas);
+        URL.revokeObjectURL(tempVideo.src);
+    };
 }
 
-function log(msg, type = 'info') {
-    const box = els.logBox;
-    box.classList.add('show');
-    const line = document.createElement('div');
-    line.className = `log-line log-${type}`;
-    line.innerHTML = `<span class="log-time">[${new Date().toLocaleTimeString()}]</span>${msg}`;
-    box.appendChild(line);
-    box.scrollTop = box.scrollHeight;
+// ============ Upload ============
+document.getElementById('uploadZone').addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+document.getElementById('uploadZone').addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+document.getElementById('uploadZone').addEventListener('drop', e => { e.preventDefault(); uploadZone.classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); });
+document.getElementById('videoInput').addEventListener('change', e => { const f = e.target.files[0]; if (f) handleUpload(f); });
+
+function handleUpload(file) {
+    hideError(document.getElementById('uploadError'));
+    if (!videoEl) { videoEl = document.createElement('video'); videoEl.muted = true; videoEl.playsInline = true; videoEl.preload = 'auto'; }
+    const url = URL.createObjectURL(file);
+    videoEl.src = url;
+    videoEl.onloadedmetadata = () => {
+        videoDuration = videoEl.duration;
+        videoWidth = videoEl.videoWidth;
+        videoHeight = videoEl.videoHeight;
+        renderMeta({ width: videoWidth, height: videoHeight, fps: 30, duration: videoDuration, frame_count: Math.floor(videoDuration * 30) });
+        setStep(2);
+        ['cropCard','segmentCard','mattingCard','layoutCard','generateCard'].forEach(showCard);
+        document.getElementById('changeBtnWrap').classList.remove('hidden');
+        document.getElementById('generateBtn').disabled = false;
+        initCrop(); initSegment(videoDuration); initMatting(videoDuration); updateEstimate();
+        loadFrameAtTime(0, () => { drawCropPreview(); });
+    };
+    videoEl.onerror = () => showError(document.getElementById('uploadError'), '视频加载失败');
 }
 
-function updateSteps(step) {
-    els.steps.forEach((s, i) => {
-        s.classList.remove('active', 'done');
-        if (i + 1 < step) s.classList.add('done');
-        else if (i + 1 === step) s.classList.add('active');
+function renderMeta(d) {
+    document.getElementById('videoMeta').innerHTML = `
+        <div class="meta-item"><div class="meta-label">分辨率</div><div class="meta-val">${d.width} × ${d.height}</div></div>
+        <div class="meta-item"><div class="meta-label">帧率</div><div class="meta-val">${d.fps} fps</div></div>
+        <div class="meta-item"><div class="meta-label">时长</div><div class="meta-val">${fmtTime(d.duration)}</div></div>
+        <div class="meta-item"><div class="meta-label">总帧数</div><div class="meta-val">${d.frame_count.toLocaleString()}</div></div>
+    `;
+    document.getElementById('videoMeta').classList.remove('hidden');
+}
+
+document.getElementById('changeVideoBtn').addEventListener('click', () => {
+    if (videoEl) { URL.revokeObjectURL(videoEl.src); videoEl.src = ''; }
+    videoEl = null; videoDuration = 0;
+    document.getElementById('videoInput').value = '';
+    document.getElementById('videoMeta').classList.add('hidden');
+    document.getElementById('changeBtnWrap').classList.add('hidden');
+    ['cropCard','segmentCard','mattingCard','layoutCard','generateCard','previewCard','exportCard'].forEach(hideCard);
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('progressSection').classList.add('hidden');
+    setStep(1); resetMattingState(); stopAnimPreview();
+});
+
+// ============ Crop ============
+function initCrop() {
+    const cropVideo = document.getElementById('cropSourceVideo');
+    cropVideo.src = videoEl.src; cropVideo.load();
+    cropVideo.onloadeddata = () => {
+        cropVideo.currentTime = 0.01;
+        cropVideo.onseeked = () => { updateCropFromInputs(); drawCropPreview(); };
+    };
+    const cropWrap = document.getElementById('cropCanvasWrap');
+    cropWrap.addEventListener('mousedown', onCropDown);
+    window.addEventListener('mousemove', onCropMove);
+    window.addEventListener('mouseup', onCropUp);
+    ['cropLeft','cropTop','cropWidth','cropHeight'].forEach(id => {
+        document.getElementById(id).addEventListener('input', () => { updateCropFromInputs(); drawCropPreview(); });
+    });
+    document.getElementById('resetCropBtn').addEventListener('click', resetCrop);
+}
+
+function getCropRect() {
+    const cropWrap = document.getElementById('cropCanvasWrap');
+    const cropVideo = document.getElementById('cropSourceVideo');
+    const rect = cropWrap.getBoundingClientRect();
+    const iw = cropVideo.clientWidth, ih = cropVideo.clientHeight;
+    return { iw, ih, offX: (rect.width - iw) / 2, offY: (rect.height - ih) / 2 };
+}
+
+function onCropDown(e) {
+    const cropWrap = document.getElementById('cropCanvasWrap');
+    const cropBox = document.getElementById('cropBox');
+    const { iw, ih, offX, offY } = getCropRect();
+    const x = e.clientX - cropWrap.getBoundingClientRect().left;
+    const y = e.clientY - cropWrap.getBoundingClientRect().top;
+    const boxStyle = cropBox.style;
+    const boxL = parseFloat(boxStyle.left || 0), boxT = parseFloat(boxStyle.top || 0);
+    const boxW = parseFloat(boxStyle.width || 0), boxH = parseFloat(boxStyle.height || 0);
+    if (cropActive && x >= boxL && x <= boxL + boxW && y >= boxT && y <= boxT + boxH) {
+        if (e.target.classList.contains('handle')) { cropResizing = true; cropStartX = x; cropStartY = y; return; }
+        cropDragging = true; cropStartX = x; cropStartY = y; return;
+    }
+    cropActive = true; cropDragging = true; cropStartX = x; cropStartY = y;
+    cropBox.style.left = x + 'px'; cropBox.style.top = y + 'px';
+    cropBox.style.width = '0px'; cropBox.style.height = '0px'; cropBox.classList.add('active');
+}
+
+function onCropMove(e) {
+    if (!cropDragging && !cropResizing) return;
+    const cropWrap = document.getElementById('cropCanvasWrap');
+    const cropBox = document.getElementById('cropBox');
+    const { iw, ih, offX, offY } = getCropRect();
+    const x = e.clientX - cropWrap.getBoundingClientRect().left;
+    const y = e.clientY - cropWrap.getBoundingClientRect().top;
+    const imgLeft = offX, imgTop = offY, imgRight = offX + iw, imgBottom = offY + ih;
+    if (cropDragging && !cropResizing) {
+        const l = Math.min(cropStartX, x), t = Math.min(cropStartY, y);
+        let w = Math.abs(x - cropStartX), h = Math.abs(y - cropStartY);
+        let fl = Math.max(l, imgLeft), ft = Math.max(t, imgTop);
+        let fw = Math.min(w, imgRight - fl), fh = Math.min(h, imgBottom - ft);
+        fw = Math.max(4, fw); fh = Math.max(4, fh);
+        cropBox.style.left = fl + 'px'; cropBox.style.top = ft + 'px';
+        cropBox.style.width = fw + 'px'; cropBox.style.height = fh + 'px';
+        updateInputsFromBox(fl, ft, fw, fh);
+    }
+}
+
+function onCropUp() { cropDragging = false; cropResizing = false; if (cropActive) drawCropPreview(); }
+
+function updateInputsFromBox(boxL, boxT, boxW, boxH) {
+    const { iw, ih, offX, offY } = getCropRect();
+    cropValues.left = Math.max(0, Math.min(100, (boxL - offX) / iw * 100));
+    cropValues.top = Math.max(0, Math.min(100, (boxT - offY) / ih * 100));
+    cropValues.width = Math.max(1, Math.min(100 - cropValues.left, boxW / iw * 100));
+    cropValues.height = Math.max(1, Math.min(100 - cropValues.top, boxH / ih * 100));
+    document.getElementById('cropLeft').value = cropValues.left.toFixed(2);
+    document.getElementById('cropTop').value = cropValues.top.toFixed(2);
+    document.getElementById('cropWidth').value = cropValues.width.toFixed(2);
+    document.getElementById('cropHeight').value = cropValues.height.toFixed(2);
+}
+
+function updateCropFromInputs() {
+    cropValues.left = Math.max(0, Math.min(100, parseFloat(document.getElementById('cropLeft').value) || 0));
+    cropValues.top = Math.max(0, Math.min(100, parseFloat(document.getElementById('cropTop').value) || 0));
+    cropValues.width = Math.max(1, Math.min(100 - cropValues.left, parseFloat(document.getElementById('cropWidth').value) || 100));
+    cropValues.height = Math.max(1, Math.min(100 - cropValues.top, parseFloat(document.getElementById('cropHeight').value) || 100));
+    const { iw, ih, offX, offY } = getCropRect();
+    if (!iw || !ih) return;
+    const cropBox = document.getElementById('cropBox');
+    cropBox.style.left = (offX + iw * cropValues.left / 100) + 'px';
+    cropBox.style.top = (offY + ih * cropValues.top / 100) + 'px';
+    cropBox.style.width = (iw * cropValues.width / 100) + 'px';
+    cropBox.style.height = (ih * cropValues.height / 100) + 'px';
+    cropBox.classList.add('active'); cropActive = true;
+}
+
+function resetCrop() {
+    cropValues = { left: 0, top: 0, width: 100, height: 100 };
+    ['cropLeft','cropTop'].forEach((id, i) => document.getElementById(id).value = '0');
+    ['cropWidth','cropHeight'].forEach(id => document.getElementById(id).value = '100');
+    document.getElementById('cropBox').classList.remove('active'); cropActive = false;
+    drawCropPreview();
+}
+
+function drawCropPreview() {
+    const canvas = document.getElementById('cropPreviewCanvas');
+    const ctx = canvas.getContext('2d');
+    const cropW = Math.round(videoWidth * cropValues.width / 100);
+    const cropH = Math.round(videoHeight * cropValues.height / 100);
+    const sx = Math.round(videoWidth * cropValues.left / 100);
+    const sy = Math.round(videoHeight * cropValues.top / 100);
+    canvas.width = cropW; canvas.height = cropH;
+    ctx.drawImage(videoEl, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+    document.getElementById('previewSize').textContent = `当前输出尺寸：${cropW} × ${cropH}`;
+}
+
+// ============ Segment ============
+function initSegment(duration) {
+    segmentValues.start = 0; segmentValues.end = duration;
+    const track = document.getElementById('segmentTrack');
+    const range = document.getElementById('segmentRange');
+    const thumbStart = document.getElementById('thumbStart');
+    const thumbEnd = document.getElementById('thumbEnd');
+    const updateSliderUI = () => {
+        const pctStart = (segmentValues.start / duration) * 100, pctEnd = (segmentValues.end / duration) * 100;
+        range.style.left = pctStart + '%'; range.style.width = (pctEnd - pctStart) + '%';
+        thumbStart.style.left = pctStart + '%'; thumbEnd.style.left = pctEnd + '%';
+        thumbStart.setAttribute('data-label', fmtTime(segmentValues.start));
+        thumbEnd.setAttribute('data-label', fmtTime(segmentValues.end));
+        document.getElementById('segStartInput').value = fmtTime(segmentValues.start);
+        document.getElementById('segEndInput').value = fmtTime(segmentValues.end);
+        document.getElementById('segDurationInput').value = (segmentValues.end - segmentValues.start).toFixed(2) + ' 秒';
+        updateEstimate(); updateMattingRefRange();
+    };
+    let activeThumb = null;
+    thumbStart.addEventListener('mousedown', e => { activeThumb = 'start'; e.preventDefault(); });
+    thumbEnd.addEventListener('mousedown', e => { activeThumb = 'end'; e.preventDefault(); });
+    window.addEventListener('mousemove', e => {
+        if (!activeThumb) return;
+        const rect = track.getBoundingClientRect();
+        let pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const val = pct * duration;
+        if (activeThumb === 'start') segmentValues.start = Math.min(val, segmentValues.end - 0.1);
+        else segmentValues.end = Math.max(val, segmentValues.start + 0.1);
+        updateSliderUI();
+    });
+    window.addEventListener('mouseup', () => activeThumb = null);
+    updateSliderUI();
+}
+
+document.getElementById('extractFps').addEventListener('input', updateEstimate);
+
+function updateEstimate() {
+    const fps = parseFloat(document.getElementById('extractFps').value) || 1;
+    const dur = Math.max(0, segmentValues.end - segmentValues.start);
+    const frames = Math.max(1, Math.floor(dur * fps));
+    document.getElementById('estFrames').textContent = frames + ' 帧';
+    document.getElementById('estDuration').textContent = dur.toFixed(2) + ' 秒片段';
+}
+
+// ============ Matting ============
+function resetMattingState() {
+    mattingState = { enabled: false, refTime: 0, sampleX: -1, sampleY: -1, rgb: null, hex: null, tolerance: 10, feather: 2, edgeSmooth: true, spillRemove: true, previewMode: 'result', solidBg: '#ffffff', outputMode: 'transparent', outputSolidBg: '#ffffff' };
+    document.getElementById('colorSwatch').style.background = '#000';
+    document.getElementById('colorSampleRgb').textContent = '尚未选择背景色';
+    document.getElementById('colorSamplePos').textContent = '在左侧画面点击背景进行取色';
+    document.getElementById('sampleIndicator').classList.remove('active');
+    document.getElementById('samplePosText').textContent = '—';
+    document.getElementById('tolerance').value = 10; document.getElementById('toleranceVal').textContent = '10';
+    document.getElementById('feather').value = 2; document.getElementById('featherVal').textContent = '2px';
+    document.getElementById('edgeSmooth').checked = true; document.getElementById('spillRemove').checked = true;
+    document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector('.preview-tab[data-mode="result"]').classList.add('active');
+    clearMask(); resetMaskHistory();
+}
+
+function initMatting(duration) {
+    mattingState.refTime = duration / 2;
+    const track = document.getElementById('refFrameTrack');
+    const thumb = document.getElementById('refFrameThumb');
+    const updateRefUI = () => {
+        const pct = (mattingState.refTime / duration) * 100;
+        thumb.style.left = pct + '%'; thumb.setAttribute('data-label', fmtTime(mattingState.refTime));
+        document.getElementById('refTimeDisplay').textContent = fmtTime(mattingState.refTime);
+    };
+    let dragging = false;
+    thumb.addEventListener('mousedown', e => { dragging = true; e.preventDefault(); });
+    window.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const rect = track.getBoundingClientRect();
+        mattingState.refTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * duration;
+        updateRefUI();
+    });
+    window.addEventListener('mouseup', () => { if (dragging) { dragging = false; loadReferenceFrame(); } });
+    updateRefUI(); updateMattingRefRange(); loadReferenceFrame();
+}
+
+function updateMattingRefRange() {
+    document.getElementById('refFrameRangeText').textContent = `${fmtTime(segmentValues.start)} - ${fmtTime(segmentValues.end)} 片段内取色`;
+}
+
+function loadReferenceFrame() {
+    const wrap = document.getElementById('refFrameWrap');
+    const canvas = document.getElementById('refCanvas');
+    wrap.style.cursor = 'wait';
+    loadFrameAtTime(mattingState.refTime, (frameCanvas) => {
+        refFrameNaturalW = frameCanvas.width; refFrameNaturalH = frameCanvas.height;
+        canvas.width = frameCanvas.width; canvas.height = frameCanvas.height;
+        refFrameCtx = canvas.getContext('2d');
+        refFrameCtx.drawImage(frameCanvas, 0, 0);
+        initMaskCanvas(); syncMaskCanvasPosition(); updateSampleIndicator();
+        if (mattingState.enabled && mattingState.sampleX >= 0) requestMattingPreview();
+        wrap.style.cursor = 'crosshair';
     });
 }
 
-function setStepVisible(cardId, visible) {
-    const card = document.getElementById(cardId);
-    if (card) card.style.display = visible ? 'block' : 'none';
+// ============ Mask ============
+function initMaskCanvas() {
+    const maskCanvas = document.getElementById('maskCanvas');
+    const refCanvas = document.getElementById('refCanvas');
+    if (!refCanvas || refCanvas.width === 0) return;
+    maskCanvas.width = refCanvas.width; maskCanvas.height = refCanvas.height;
+    maskCanvas.getContext('2d').clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    maskHasPaint = false;
+    document.getElementById('clearMaskBtn').classList.add('toolbar-invisible');
+    resetMaskHistory(); pushMaskHistory();
 }
 
-// ============ File Handling ============
-els.uploadArea.addEventListener('click', () => els.fileInput.click());
+function resetMaskHistory() { maskHistory = []; maskHistoryIdx = -1; }
 
-els.uploadArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    els.uploadArea.classList.add('dragover');
-});
+function pushMaskHistory() {
+    const maskCanvas = document.getElementById('maskCanvas');
+    if (!maskCanvas || maskCanvas.width === 0) return;
+    const data = maskCanvas.getContext('2d').getImageData(0, 0, maskCanvas.width, maskCanvas.height);
+    if (maskHistoryIdx >= 0 && maskHistoryIdx < maskHistory.length - 1) maskHistory = maskHistory.slice(0, maskHistoryIdx + 1);
+    maskHistory.push(data);
+    if (maskHistory.length > MAX_MASK_HISTORY) maskHistory.shift(); else maskHistoryIdx++;
+    updateUndoRedoButtons();
+}
 
-els.uploadArea.addEventListener('dragleave', () => {
-    els.uploadArea.classList.remove('dragover');
-});
+function restoreMaskFromHistory() {
+    const maskCanvas = document.getElementById('maskCanvas');
+    if (!maskCanvas || maskHistoryIdx < 0 || maskHistoryIdx >= maskHistory.length) return;
+    maskCanvas.getContext('2d').putImageData(maskHistory[maskHistoryIdx], 0, 0);
+    const data = maskHistory[maskHistoryIdx].data;
+    maskHasPaint = Array.from(data).some((v, i) => i % 4 === 3 && v > 0);
+    document.getElementById('clearMaskBtn').classList.toggle('toolbar-invisible', !maskHasPaint);
+    updateUndoRedoButtons(); requestMattingPreview();
+}
 
-els.uploadArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    els.uploadArea.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('video/')) {
-        loadVideo(file);
+function updateUndoRedoButtons() {
+    document.getElementById('undoMaskBtn').disabled = maskHistoryIdx <= 0;
+    document.getElementById('redoMaskBtn').disabled = maskHistoryIdx >= maskHistory.length - 1;
+}
+
+function paintOnMask(e, targetMaskCanvas) {
+    const canvas = document.getElementById('refCanvas');
+    const maskCanvas = targetMaskCanvas || document.getElementById('maskCanvas');
+    const rect = maskCanvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+    const x = (e.clientX - rect.left) * scaleX, y = (e.clientY - rect.top) * scaleY;
+    const ctx = maskCanvas.getContext('2d');
+    ctx.fillStyle = brushState.tool === 'erase' ? 'rgba(80, 80, 255, 0.55)' : 'rgba(255, 80, 80, 0.55)';
+    ctx.beginPath(); ctx.arc(x, y, brushState.size, 0, Math.PI * 2); ctx.fill();
+    maskHasPaint = true;
+    document.getElementById('clearMaskBtn').classList.remove('toolbar-invisible');
+}
+
+function clearMask() {
+    const maskCanvas = document.getElementById('maskCanvas');
+    if (!maskCanvas || maskCanvas.width === 0) return;
+    maskCanvas.getContext('2d').clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+    maskHasPaint = false;
+    document.getElementById('clearMaskBtn').classList.add('toolbar-invisible');
+    pushMaskHistory();
+}
+
+function syncMaskCanvasPosition() {
+    const refCanvas = document.getElementById('refCanvas');
+    const maskCanvas = document.getElementById('maskCanvas');
+    const wrap = document.getElementById('refFrameWrap');
+    if (!refCanvas || !maskCanvas || !wrap) return;
+    const rect = refCanvas.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    maskCanvas.style.left = (rect.left - wrapRect.left) + 'px';
+    maskCanvas.style.top = (rect.top - wrapRect.top) + 'px';
+    maskCanvas.style.width = rect.width + 'px';
+    maskCanvas.style.height = rect.height + 'px';
+}
+
+function getMaskData() {
+    if (!maskHasPaint) return null;
+    return document.getElementById('maskCanvas').getContext('2d').getImageData(0, 0, document.getElementById('maskCanvas').width, document.getElementById('maskCanvas').height);
+}
+
+function setBrushTool(tool) {
+    brushState.tool = tool;
+    document.querySelectorAll('.brush-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === tool));
+    document.getElementById('brushSizeWrap').classList.toggle('toolbar-invisible', tool === 'sample');
+    document.getElementById('undoMaskBtn').classList.toggle('toolbar-invisible', tool === 'sample');
+    document.getElementById('redoMaskBtn').classList.toggle('toolbar-invisible', tool === 'sample');
+    document.getElementById('refFrameWrap').classList.toggle('brush-mode', tool !== 'sample');
+    updateUndoRedoButtons();
+}
+
+document.getElementById('toolSample').addEventListener('click', () => setBrushTool('sample'));
+document.getElementById('toolBrush').addEventListener('click', () => setBrushTool('brush'));
+document.getElementById('toolErase').addEventListener('click', () => setBrushTool('erase'));
+document.getElementById('undoMaskBtn').addEventListener('click', () => { if (maskHistoryIdx > 0) { maskHistoryIdx--; restoreMaskFromHistory(); } });
+document.getElementById('redoMaskBtn').addEventListener('click', () => { if (maskHistoryIdx < maskHistory.length - 1) { maskHistoryIdx++; restoreMaskFromHistory(); } });
+document.getElementById('clearMaskBtn').addEventListener('click', () => { clearMask(); requestMattingPreview(); });
+document.getElementById('brushSize').addEventListener('input', e => { brushState.size = parseInt(e.target.value) || 12; });
+
+const refFrameWrapEl = document.getElementById('refFrameWrap');
+refFrameWrapEl.addEventListener('mousedown', e => {
+    if (brushState.tool !== 'sample' && e.target.id === 'maskCanvas') {
+        brushState.isDrawing = true; paintOnMask(e); requestMattingPreview();
     }
 });
-
-els.fileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) loadVideo(file);
+refFrameWrapEl.addEventListener('mousemove', e => { if (brushState.tool !== 'sample' && brushState.isDrawing) paintOnMask(e); });
+window.addEventListener('mouseup', () => {
+    if (brushState.isDrawing) { brushState.isDrawing = false; pushMaskHistory(); requestMattingPreview(); }
 });
 
-function loadVideo(file) {
-    state.videoFile = file;
-    const url = URL.createObjectURL(file);
-    els.video.src = url;
-    els.uploadArea.style.display = 'none';
-    els.videoContainer.classList.add('show');
-    log(`已加载视频: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+// ============ Matting Preview ============
+function requestMattingPreview() {
+    if (!mattingState.enabled) return;
+    clearTimeout(mattingPreviewTimer);
+    mattingPreviewTimer = setTimeout(doMattingPreview, 150);
 }
 
-els.video.addEventListener('loadedmetadata', () => {
-    state.duration = els.video.duration;
-    state.endTime = state.duration;
-    state.startTime = 0;
-    els.duration.textContent = formatTime(state.duration);
-    updateTimeline();
-    updateSelectionInfo();
-    drawPreviewFrame();
-    updateSteps(2);
-    log(`视频信息: ${state.duration.toFixed(2)}秒`, 'info');
-});
+function doMattingPreview() {
+    if (!mattingState.enabled || mattingState.sampleX < 0) return;
+    loadFrameAtTime(mattingState.refTime, (frameCanvas) => {
+        const cropW = Math.round(frameCanvas.width * cropValues.width / 100);
+        const cropH = Math.round(frameCanvas.height * cropValues.height / 100);
+        const sx = Math.round(frameCanvas.width * cropValues.left / 100);
+        const sy = Math.round(frameCanvas.height * cropValues.top / 100);
+        const cropped = document.createElement('canvas');
+        cropped.width = cropW; cropped.height = cropH;
+        cropped.getContext('2d').drawImage(frameCanvas, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+        const maskData = getMaskData();
+        const result = applyMatting(cropped, maskData, mattingState);
+        const previewCanvas = document.getElementById('mattingPreviewCanvas');
+        previewCanvas.width = result.width; previewCanvas.height = result.height;
+        const ctx = previewCanvas.getContext('2d');
+        if (mattingState.previewMode === 'alpha') ctx.putImageData(result.alphaImageData, 0, 0);
+        else if (mattingState.previewMode === 'solid') ctx.putImageData(result.solidImageData, 0, 0);
+        else ctx.putImageData(result.imageData, 0, 0);
+    });
+}
 
-els.video.addEventListener('timeupdate', () => {
-    state.currentTime = els.video.currentTime;
-    els.currentTime.textContent = formatTime(state.currentTime);
-    const percent = (state.currentTime / state.duration) * 100;
-    els.videoProgressFill.style.width = percent + '%';
-    els.playhead.style.left = percent + '%';
-    
-    if (Math.abs(state.currentTime - state.startTime) < 0.5) {
-        els.frameNum.textContent = '0';
-        els.frameTime.textContent = formatTime(state.startTime);
+// ============ Matting Algorithm ============
+function applyMatting(sourceCanvas, maskData, state) {
+    const width = sourceCanvas.width, height = sourceCanvas.height;
+    const ctx = sourceCanvas.getContext('2d');
+    const srcData = ctx.getImageData(0, 0, width, height);
+    const src = srcData.data;
+    const [bgR, bgG, bgB] = state.rgb;
+    const tolerance = state.tolerance * 2.55;
+    const feather = state.feather;
+    let scaleX = 1, scaleY = 1;
+    if (maskData && (maskData.width !== width || maskData.height !== height)) {
+        scaleX = width / maskData.width; scaleY = height / maskData.height;
     }
-});
-
-els.video.addEventListener('play', () => {
-    state.isPlaying = true;
-    els.btnPlayPause.textContent = '⏸';
-});
-
-els.video.addEventListener('pause', () => {
-    state.isPlaying = false;
-    els.btnPlayPause.textContent = '▶';
-});
-
-els.btnPlayPause.addEventListener('click', () => {
-    if (state.isPlaying) {
-        els.video.pause();
-    } else {
-        els.video.play();
-    }
-});
-
-els.btnStepBack.addEventListener('click', () => {
-    els.video.currentTime = Math.max(0, els.video.currentTime - 1);
-});
-
-els.btnStepForward.addEventListener('click', () => {
-    els.video.currentTime = Math.min(state.duration, els.video.currentTime + 1);
-});
-
-els.btnChangeVideo.addEventListener('click', () => {
-    els.fileInput.click();
-});
-
-els.videoProgressBar.addEventListener('click', (e) => {
-    const rect = els.videoProgressBar.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    els.video.currentTime = percent * state.duration;
-});
-
-// ============ Timeline ============
-let dragging = null;
-
-function updateTimeline() {
-    const startPercent = (state.startTime / state.duration) * 100;
-    const endPercent = (state.endTime / state.duration) * 100;
-    els.thumbStart.style.left = startPercent + '%';
-    els.thumbEnd.style.left = endPercent + '%';
-    els.thumbStart.style.width = (endPercent - startPercent) + '%';
-}
-
-function updateSelectionInfo() {
-    const dur = state.endTime - state.startTime;
-    els.selectionInfo.textContent = 
-        `${formatTime(state.startTime)} ~ ${formatTime(state.endTime)} (${dur.toFixed(1)}秒)`;
-}
-
-function getTimeFromX(e) {
-    const rect = els.timeline.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percent = Math.max(0, Math.min(1, x / rect.width));
-    return percent * state.duration;
-}
-
-els.thumbStart.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    dragging = 'start';
-});
-
-els.thumbEnd.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    dragging = 'end';
-});
-
-document.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const time = getTimeFromX(e);
-    
-    if (dragging === 'start') {
-        state.startTime = Math.min(time, state.endTime - 0.1);
-    } else {
-        state.endTime = Math.max(time, state.startTime + 0.1);
-    }
-    
-    updateTimeline();
-    updateSelectionInfo();
-});
-
-document.addEventListener('mouseup', () => {
-    dragging = null;
-});
-
-els.timeline.addEventListener('click', (e) => {
-    if (e.target === els.thumbStart || e.target === els.thumbEnd) return;
-    const time = getTimeFromX(e);
-    els.video.currentTime = Math.max(state.startTime, Math.min(state.endTime, time));
-    drawPreviewFrame();
-});
-
-// ============ Preview ============
-function drawPreviewFrame() {
-    const canvas = els.previewCanvas;
-    const video = els.video;
-    const ctx = canvas.getContext('2d');
-    
-    // Set canvas size to match video
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 360;
-    
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Update frame info
-    els.frameTime.textContent = formatTime(els.video.currentTime);
-}
-
-// Update preview periodically when playing
-els.video.addEventListener('timeupdate', drawPreviewFrame);
-
-// ============ Step Navigation ============
-els.btnNextStep2.addEventListener('click', () => {
-    updateSteps(3);
-    setStepVisible('card-upload', false);
-    setStepVisible('card-timeline', false);
-    setStepVisible('card-settings', true);
-});
-
-// ============ Settings ============
-els.frameInterval.addEventListener('input', (e) => {
-    state.settings.frameInterval = parseInt(e.target.value);
-    els.frameIntervalVal.textContent = e.target.value + '帧';
-});
-
-els.framesPerRow.addEventListener('input', (e) => {
-    state.settings.framesPerRow = parseInt(e.target.value);
-    els.framesPerRowVal.textContent = e.target.value;
-});
-
-els.scale.addEventListener('input', (e) => {
-    state.settings.scale = parseInt(e.target.value) / 100;
-    els.scaleVal.textContent = e.target.value + '%';
-});
-
-els.quality.addEventListener('change', (e) => {
-    state.settings.quality = parseFloat(e.target.value);
-});
-
-// ============ Frame Extraction ============
-els.btnGenerate.addEventListener('click', generateFrames);
-
-async function generateFrames() {
-    updateSteps(4);
-    setStepVisible('card-settings', false);
-    els.progressContainer.classList.add('show');
-    els.logBox.classList.add('show');
-    
-    const video = els.video;
-    const { frameInterval, framesPerRow, scale, quality } = state.settings;
-    
-    // Calculate frames to extract
-    const fps = 30; // Assume 30fps for calculation
-    const startFrame = Math.floor(state.startTime * fps);
-    const endFrame = Math.floor(state.endTime * fps);
-    const totalFrames = endFrame - startFrame;
-    
-    const framesToExtract = [];
-    for (let i = startFrame; i < endFrame; i += frameInterval) {
-        framesToExtract.push(i / fps);
-    }
-    
-    log(`需要提取 ${framesToExtract.length} 帧`, 'info');
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    const outputWidth = Math.floor((video.videoWidth || 640) * scale);
-    const outputHeight = Math.floor((video.videoHeight || 360) * scale);
-    canvas.width = outputWidth;
-    canvas.height = outputHeight;
-    
-    state.frames = [];
-    
-    // Extract each frame
-    for (let i = 0; i < framesToExtract.length; i++) {
-        const time = framesToExtract[i];
-        
-        // Update progress
-        const percent = ((i + 1) / framesToExtract.length) * 80;
-        els.progressFill.style.width = percent + '%';
-        els.progressText.textContent = `提取帧 ${i + 1}/${framesToExtract.length}...`;
-        
-        // Seek to time and wait for frame
-        await new Promise((resolve) => {
-            const handler = () => {
-                video.removeEventListener('seeked', handler);
-                resolve();
-            };
-            video.addEventListener('seeked', handler);
-            video.currentTime = time;
-        });
-        
-        // Draw frame to canvas
-        ctx.drawImage(video, 0, 0, outputWidth, outputHeight);
-        
-        // Get image data
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        state.frames.push({
-            dataUrl,
-            time,
-            index: i
-        });
-        
-        log(`提取帧 ${i + 1}: ${formatTime(time)}`, 'info');
-    }
-    
-    log('正在生成帧表...', 'info');
-    els.progressFill.style.width = '90%';
-    els.progressText.textContent = '生成帧表图片...';
-    
-    // Generate sprite sheet
-    await generateSpriteSheet(framesToExtract.length, outputWidth, outputHeight, framesPerRow, scale, quality);
-    
-    // Show output
-    els.progressFill.style.width = '100%';
-    els.progressText.textContent = '完成!';
-    updateSteps(5);
-    els.cardOutput.classList.add('show');
-    els.progressContainer.classList.remove('show');
-    
-    log('生成完成!', 'info');
-}
-
-async function generateSpriteSheet(frameCount, frameWidth, frameHeight, framesPerRow, scale, quality) {
-    const rows = Math.ceil(frameCount / framesPerRow);
-    const cols = Math.min(frameCount, framesPerRow);
-    
-    const sheetCanvas = document.createElement('canvas');
-    sheetCanvas.width = cols * frameWidth;
-    sheetCanvas.height = rows * frameHeight;
-    const ctx = sheetCanvas.getContext('2d');
-    
-    // Fill with black background
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, sheetCanvas.width, sheetCanvas.height);
-    
-    // Draw frames
-    els.outputGrid.innerHTML = '';
-    
-    for (let i = 0; i < state.frames.length; i++) {
-        const frame = state.frames[i];
-        
-        // Load image
-        const img = await loadImage(frame.dataUrl);
-        
-        // Calculate position
-        const col = i % framesPerRow;
-        const row = Math.floor(i / framesPerRow);
-        const x = col * frameWidth;
-        const y = row * frameHeight;
-        
-        // Draw to sprite sheet
-        ctx.drawImage(img, x, y, frameWidth, frameHeight);
-        
-        // Add to grid preview
-        const div = document.createElement('div');
-        div.className = 'output-frame';
-        
-        const imgEl = document.createElement('img');
-        imgEl.src = frame.dataUrl;
-        imgEl.alt = `帧 ${i + 1}`;
-        
-        const num = document.createElement('div');
-        num.className = 'frame-num';
-        num.textContent = `#${i + 1}`;
-        
-        div.appendChild(imgEl);
-        div.appendChild(num);
-        els.outputGrid.appendChild(div);
-        
-        // Small delay for UI responsiveness
-        if (i % 10 === 0) {
-            await new Promise(r => setTimeout(r, 10));
+    const alpha = new Uint8ClampedArray(width * height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const i = (y * width + x) * 4;
+            const r = src[i], g = src[i + 1], b = src[i + 2];
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+            let maskValue = 0;
+            if (maskData) {
+                const mx = Math.floor(x / scaleX), my = Math.floor(y / scaleY);
+                if (mx < maskData.width && my < maskData.height) {
+                    const mi = (my * maskData.width + mx) * 4;
+                    if (maskData.data[mi] > 200) maskValue = 255;
+                    else if (maskData.data[mi + 2] > 200) maskValue = -255;
+                }
+            }
+            if (maskValue > 0) alpha[y * width + x] = 0;
+            else if (maskValue < 0) alpha[y * width + x] = 255;
+            else if (dist <= tolerance) alpha[y * width + x] = 0;
+            else if (dist <= tolerance + feather * 3) alpha[y * width + x] = Math.min(255, Math.round((dist - tolerance) / (feather * 3 + 0.001) * 255));
+            else alpha[y * width + x] = 255;
         }
     }
-    
-    // Store sprite sheet for download
-    state.spriteSheet = sheetCanvas.toDataURL('image/png');
+    let finalAlpha = alpha;
+    if (state.edgeSmooth && feather > 0) finalAlpha = gaussianBlur(alpha, width, height, feather);
+    const imageData = ctx.createImageData(width, height);
+    const pixels = imageData.data;
+    for (let i = 0; i < width * height; i++) {
+        const a = finalAlpha[i], si = i * 4;
+        if (a === 0) { pixels[si] = pixels[si+1] = pixels[si+2] = pixels[si+3] = 0; continue; }
+        let pr = src[si], pg = src[si+1], pb = src[si+2];
+        if (state.spillRemove) {
+            const avg = (pr + pg + pb) / 3;
+            const sat = Math.sqrt(((pr-avg)**2 + (pg-avg)**2 + (pb-avg)**2) / 3);
+            if (sat > 20) {
+                const satFactor = 0.3 + 0.7 * (a / 255);
+                pr = Math.round(avg + (pr - avg) * satFactor);
+                pg = Math.round(avg + (pg - avg) * satFactor);
+                pb = Math.round(avg + (pb - avg) * satFactor);
+            }
+        }
+        pixels[si] = pr; pixels[si+1] = pg; pixels[si+2] = pb; pixels[si+3] = a;
+    }
+    const alphaImageData = ctx.createImageData(width, height);
+    for (let i = 0; i < width * height; i++) { const a = finalAlpha[i], idx = i * 4; alphaImageData.data[idx] = alphaImageData.data[idx+1] = alphaImageData.data[idx+2] = a; alphaImageData.data[idx+3] = 255; }
+    const solidImageData = ctx.createImageData(width, height);
+    const solidColor = hexToRgb(state.solidBg);
+    for (let i = 0; i < width * height; i++) {
+        const a = finalAlpha[i] / 255, si = i * 4;
+        solidImageData.data[si] = Math.round(pixels[si] * a + solidColor.r * (1 - a));
+        solidImageData.data[si+1] = Math.round(pixels[si+1] * a + solidColor.g * (1 - a));
+        solidImageData.data[si+2] = Math.round(pixels[si+2] * a + solidColor.b * (1 - a));
+        solidImageData.data[si+3] = 255;
+    }
+    return { width, height, imageData, alphaImageData, solidImageData };
 }
 
-function loadImage(src) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
+function gaussianBlur(src, width, height, radius) {
+    const dst = new Uint8ClampedArray(width * height);
+    const size = radius * 2 + 1;
+    const kernel = [];
+    let sum = 0;
+    for (let i = -radius; i <= radius; i++) { const v = Math.exp(-(i*i)/(2*radius*radius)); kernel.push(v); sum += v; }
+    kernel.forEach((v, i) => kernel[i] /= sum);
+    const temp = new Uint8ClampedArray(width * height);
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { let val = 0; for (let k = -radius; k <= radius; k++) val += src[y*width+Math.max(0,Math.min(width-1,x+k))] * kernel[k+radius]; temp[y*width+x] = Math.round(val); }
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) { let val = 0; for (let k = -radius; k <= radius; k++) val += temp[Math.max(0,Math.min(height-1,y+k))*width+x] * kernel[k+radius]; dst[y*width+x] = Math.round(val); }
+    return dst;
+}
+
+// ============ Matting UI ============
+document.getElementById('refFrameWrap').addEventListener('click', e => {
+    if (brushState.tool !== 'sample' || !refFrameCtx) return;
+    const canvas = document.getElementById('refCanvas');
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
+    const y = Math.floor((e.clientY - rect.top) * (canvas.height / rect.height));
+    if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) return;
+    const pixel = refFrameCtx.getImageData(x, y, 1, 1).data;
+    const r = pixel[0], g = pixel[1], b = pixel[2];
+    const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+    mattingState.tolerance = parseInt(document.getElementById('tolerance').value) || 0;
+    mattingState.feather = parseInt(document.getElementById('feather').value) || 0;
+    mattingState.edgeSmooth = document.getElementById('edgeSmooth').checked;
+    mattingState.spillRemove = document.getElementById('spillRemove').checked;
+    mattingState.enabled = true; mattingState.sampleX = x; mattingState.sampleY = y; mattingState.rgb = [r,g,b]; mattingState.hex = hex;
+    document.getElementById('colorSwatch').style.background = hex;
+    document.getElementById('colorSampleRgb').textContent = `RGB(${r}, ${g}, ${b})`;
+    document.getElementById('colorSamplePos').textContent = `位置: (${x}, ${y})`;
+    document.getElementById('samplePosText').textContent = `(${x}, ${y})`;
+    updateSampleIndicator(); requestMattingPreview();
+});
+
+function updateSampleIndicator() {
+    const indicator = document.getElementById('sampleIndicator');
+    if (!mattingState.enabled || mattingState.sampleX < 0) { indicator.classList.remove('active'); return; }
+    const canvas = document.getElementById('refCanvas');
+    const wrap = document.getElementById('refFrameWrap');
+    const canvasRect = canvas.getBoundingClientRect();
+    const wrapRect = wrap.getBoundingClientRect();
+    const scaleX = canvasRect.width / canvas.width, scaleY = canvasRect.height / canvas.height;
+    indicator.style.left = (mattingState.sampleX * scaleX + (canvasRect.left - wrapRect.left)) + 'px';
+    indicator.style.top = (mattingState.sampleY * scaleY + (canvasRect.top - wrapRect.top)) + 'px';
+    indicator.classList.add('active');
+}
+
+window.addEventListener('resize', () => { updateSampleIndicator(); syncMaskCanvasPosition(); });
+
+document.getElementById('clearColorBtn').addEventListener('click', () => {
+    mattingState.enabled = false; mattingState.sampleX = -1; mattingState.sampleY = -1; mattingState.rgb = null; mattingState.hex = null;
+    document.getElementById('colorSwatch').style.background = '#000';
+    document.getElementById('colorSampleRgb').textContent = '尚未选择背景色';
+    document.getElementById('colorSamplePos').textContent = '在左侧画面点击背景进行取色';
+    document.getElementById('samplePosText').textContent = '—';
+    document.getElementById('sampleIndicator').classList.remove('active');
+    const previewCanvas = document.getElementById('mattingPreviewCanvas');
+    previewCanvas.getContext('2d').clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+});
+
+document.querySelectorAll('.preview-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.preview-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active'); mattingState.previewMode = tab.dataset.mode; requestMattingPreview();
+    });
+});
+
+document.getElementById('solidBgColor').addEventListener('input', e => { mattingState.solidBg = e.target.value; document.getElementById('solidBgHex').textContent = e.target.value; if (mattingState.enabled && mattingState.previewMode === 'solid') requestMattingPreview(); });
+document.getElementById('tolerance').addEventListener('input', e => { mattingState.tolerance = parseInt(e.target.value) || 0; document.getElementById('toleranceVal').textContent = mattingState.tolerance; requestMattingPreview(); });
+document.getElementById('feather').addEventListener('input', e => { mattingState.feather = parseInt(e.target.value) || 0; document.getElementById('featherVal').textContent = mattingState.feather + 'px'; requestMattingPreview(); });
+document.getElementById('edgeSmooth').addEventListener('change', e => { mattingState.edgeSmooth = e.target.checked; requestMattingPreview(); });
+document.getElementById('spillRemove').addEventListener('change', e => { mattingState.spillRemove = e.target.checked; requestMattingPreview(); });
+document.getElementById('mattingOutputMode').addEventListener('change', e => { mattingState.outputMode = e.target.value; document.getElementById('mattingSolidBgField').style.opacity = e.target.value === 'solid' ? '1' : '0.4'; });
+document.getElementById('mattingSolidBg').addEventListener('input', e => { mattingState.outputSolidBg = e.target.value; document.getElementById('mattingSolidBgHex').textContent = e.target.value; });
+
+// ============ Layout ============
+function bindRange(id, valId, suffix) {
+    const el = document.getElementById(id), val = document.getElementById(valId);
+    el.addEventListener('input', () => { val.textContent = el.value + suffix; });
+}
+bindRange('cols', 'colsVal', '');
+bindRange('frameWidth', 'fwVal', 'px');
+bindRange('frameHeight', 'fhVal', 'px');
+bindRange('padding', 'padVal', 'px');
+bindRange('tsSize', 'tsSizeVal', 'x');
+
+document.getElementById('frameSizePreset').addEventListener('change', e => {
+    const size = parseInt(e.target.value);
+    document.getElementById('frameWidth').value = size; document.getElementById('frameHeight').value = size;
+    document.getElementById('fwVal').textContent = size + 'px'; document.getElementById('fhVal').textContent = size + 'px';
+    document.getElementById('frameWidthManual').value = size;
+});
+document.getElementById('frameWidthManual').addEventListener('input', e => {
+    const size = parseInt(e.target.value) || 128;
+    document.getElementById('frameWidth').value = size; document.getElementById('fwVal').textContent = size + 'px';
+    document.getElementById('frameSizePreset').value = '';
+});
+document.getElementById('frameWidth').addEventListener('input', e => { document.getElementById('fwVal').textContent = e.target.value + 'px'; document.getElementById('frameWidthManual').value = e.target.value; });
+document.getElementById('frameHeight').addEventListener('input', e => { document.getElementById('fhVal').textContent = e.target.value + 'px'; });
+document.getElementById('bgColor').addEventListener('input', e => { document.getElementById('bgHex').textContent = e.target.value; });
+document.getElementById('tsColor').addEventListener('input', e => { document.getElementById('tsHex').textContent = e.target.value; });
+document.getElementById('includeTs').addEventListener('change', e => { document.getElementById('tsOptions').classList.toggle('hidden', !e.target.checked); });
+
+// ============ Generate ============
+document.getElementById('generateBtn').addEventListener('click', generate);
+
+async function generate() {
+    hideError(document.getElementById('genError'));
+    hideCard('previewCard'); hideCard('exportCard');
+    const ps = document.getElementById('progressSection');
+    ps.classList.remove('hidden'); setStep(5);
+    const extractFps = parseFloat(document.getElementById('extractFps').value) || 1;
+    const startTime = segmentValues.start, endTime = segmentValues.end;
+    const frameWidth = parseInt(document.getElementById('frameWidth').value);
+    const frameHeight = parseInt(document.getElementById('frameHeight').value);
+    const duration = endTime - startTime;
+    const totalFrames = Math.max(1, Math.floor(duration * extractFps));
+    const frameInterval = 1 / extractFps;
+    const cropW = Math.round(videoWidth * cropValues.width / 100);
+    const cropH = Math.round(videoHeight * cropValues.height / 100);
+    const cropX = Math.round(videoWidth * cropValues.left / 100);
+    const cropY = Math.round(videoHeight * cropValues.top / 100);
+    generatedFrames = [];
+    setProgress('正在提取帧...', 0);
+    for (let i = 0; i < totalFrames; i++) {
+        const time = startTime + i * frameInterval;
+        await new Promise(resolve => {
+            loadFrameAtTime(time, (frameCanvas) => {
+                const cropped = document.createElement('canvas'); cropped.width = cropW; cropped.height = cropH;
+                cropped.getContext('2d').drawImage(frameCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+                const scaled = document.createElement('canvas'); scaled.width = frameWidth; scaled.height = frameHeight;
+                const scaledCtx = scaled.getContext('2d'); scaledCtx.imageSmoothingEnabled = false;
+                scaledCtx.drawImage(cropped, 0, 0, frameWidth, frameHeight);
+                let finalCanvas = scaled;
+                if (mattingState.enabled && mattingState.sampleX >= 0) {
+                    const result = applyMatting(scaled, getMaskData(), mattingState);
+                    finalCanvas = document.createElement('canvas'); finalCanvas.width = result.width; finalCanvas.height = result.height;
+                    finalCanvas.getContext('2d').putImageData(result.imageData, 0, 0);
+                }
+                generatedFrames.push({ canvas: finalCanvas, time });
+                resolve();
+            });
+        });
+        setProgress(`正在提取帧... ${i+1}/${totalFrames}`, ((i+1)/totalFrames)*80);
+    }
+    setProgress('正在生成序列图...', 85);
+    const cols = parseInt(document.getElementById('cols').value);
+    const padding = parseInt(document.getElementById('padding').value);
+    const rows = Math.ceil(totalFrames / cols);
+    const sheetW = cols * (frameWidth + padding * 2);
+    const sheetH = rows * (frameHeight + padding * 2);
+    const sheetCanvas = document.createElement('canvas'); sheetCanvas.width = sheetW; sheetCanvas.height = sheetH;
+    const sheetCtx = sheetCanvas.getContext('2d');
+    sheetCtx.fillStyle = document.getElementById('bgColor').value;
+    sheetCtx.fillRect(0, 0, sheetW, sheetH);
+    for (let i = 0; i < generatedFrames.length; i++) {
+        const row = Math.floor(i / cols), col = i % cols;
+        const x = col * (frameWidth + padding * 2) + padding, y = row * (frameHeight + padding * 2) + padding;
+        sheetCtx.drawImage(generatedFrames[i].canvas, x, y);
+        if (document.getElementById('includeTs').checked) {
+            sheetCtx.fillStyle = document.getElementById('tsColor').value;
+            sheetCtx.font = `${Math.round(12 * parseFloat(document.getElementById('tsSize').value))}px monospace`;
+            sheetCtx.textAlign = 'right'; sheetCtx.textBaseline = 'bottom';
+            sheetCtx.fillText(fmtTime(generatedFrames[i].time), x + frameWidth - 2, y + frameHeight - 2);
+        }
+    }
+    generatedSheet = sheetCanvas;
+    setProgress('生成完成!', 100);
+    setTimeout(() => { ps.classList.add('hidden'); showPreviewAndExport({ sheet: sheetCanvas, num_frames: totalFrames, frame_width: frameWidth, frame_height: frameHeight, padding, cols }); }, 600);
+}
+
+function showPreviewAndExport(d) {
+    showCard('previewCard'); showCard('exportCard'); setStep(5);
+    document.getElementById('previewMetaText').textContent = `序列图 · ${d.sheet.width} × ${d.sheet.height}`;
+    const sheetCanvas = document.getElementById('sheetPreviewCanvas');
+    sheetCanvas.width = d.sheet.width; sheetCanvas.height = d.sheet.height;
+    sheetCanvas.getContext('2d').drawImage(d.sheet, 0, 0);
+    sheetZoom = 1.0; updateSheetZoom();
+    initAnimPreview(d); initExportParams(d);
+}
+
+// ============ Sheet Zoom ============
+function updateSheetZoom() {
+    document.getElementById('sheetPreviewCanvas').style.transform = `scale(${sheetZoom})`;
+    document.getElementById('zoomLevel').textContent = Math.round(sheetZoom * 100) + '%';
+}
+document.getElementById('zoomInBtn').addEventListener('click', () => { sheetZoom = Math.min(3.0, sheetZoom + 0.25); updateSheetZoom(); });
+document.getElementById('zoomOutBtn').addEventListener('click', () => { sheetZoom = Math.max(0.25, sheetZoom - 0.25); updateSheetZoom(); });
+document.getElementById('zoomResetBtn').addEventListener('click', () => { sheetZoom = 1.0; updateSheetZoom(); });
+
+// ============ Preview Tabs ============
+document.getElementById('tabSheet').addEventListener('click', () => {
+    document.getElementById('tabSheet').classList.add('active'); document.getElementById('tabAnim').classList.remove('active');
+    document.getElementById('sheetView').classList.remove('hidden'); document.getElementById('animView').classList.add('hidden');
+    stopAnimPreview();
+});
+document.getElementById('tabAnim').addEventListener('click', () => {
+    document.getElementById('tabAnim').classList.add('active'); document.getElementById('tabSheet').classList.remove('active');
+    document.getElementById('animView').classList.remove('hidden'); document.getElementById('sheetView').classList.add('hidden');
+    startAnimPreview();
+});
+
+// ============ Animation ============
+function initAnimPreview(d) {
+    animData = d; animCurrentFrame = 0; animIsPlaying = false; stopAnimPreview();
+    const slider = document.getElementById('animFrameSlider');
+    slider.max = d.num_frames - 1; slider.value = 0;
+    document.getElementById('animFrameText').textContent = `1 / ${d.num_frames}`;
+    drawAnimFrame(0);
+}
+
+function drawAnimFrame(frameIndex) {
+    if (!animData || !generatedFrames[frameIndex]) return;
+    const canvas = document.getElementById('animCanvas');
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const fw = animData.frame_width, fh = animData.frame_height;
+    canvas.width = fw * dpr; canvas.height = fh * dpr;
+    canvas.style.width = fw + 'px'; canvas.style.height = fh + 'px';
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, fw, fh);
+    ctx.drawImage(generatedFrames[frameIndex].canvas, 0, 0, fw, fh);
+    document.getElementById('animFrameText').textContent = `${frameIndex + 1} / ${animData.num_frames}`;
+    document.getElementById('animFrameSlider').value = frameIndex;
+}
+
+function startAnimPreview() {
+    if (animIsPlaying) return;
+    animIsPlaying = true;
+    document.getElementById('animPlayBtn').style.display = 'none';
+    document.getElementById('animPauseBtn').style.display = '';
+    const fps = parseFloat(document.getElementById('animPreviewFps').value) || 12;
+    animTimer = setInterval(() => {
+        if (!animData) return;
+        animCurrentFrame = (animCurrentFrame + 1) % animData.num_frames;
+        drawAnimFrame(animCurrentFrame);
+    }, 1000 / fps);
+}
+
+function stopAnimPreview() {
+    animIsPlaying = false;
+    if (animTimer) { clearInterval(animTimer); animTimer = null; }
+    document.getElementById('animPlayBtn').style.display = '';
+    document.getElementById('animPauseBtn').style.display = 'none';
+}
+
+document.getElementById('animPlayBtn').addEventListener('click', startAnimPreview);
+document.getElementById('animPauseBtn').addEventListener('click', stopAnimPreview);
+document.getElementById('animFrameSlider').addEventListener('input', e => { stopAnimPreview(); animCurrentFrame = parseInt(e.target.value); drawAnimFrame(animCurrentFrame); });
+document.getElementById('animPreviewFps').addEventListener('change', () => { if (animIsPlaying) { stopAnimPreview(); startAnimPreview(); } });
+
+// ============ Export ============
+function initExportParams(d) {
+    document.getElementById('exportCols').value = d.cols; document.getElementById('exportColsVal').textContent = d.cols;
+    document.getElementById('exportPadding').value = 0; document.getElementById('exportPadVal').textContent = '0px';
+    document.getElementById('exportSizePreset').value = 'original';
+    updateExportEstimate();
+}
+
+function updateExportEstimate() {
+    if (!generatedFrames.length) return;
+    const cols = parseInt(document.getElementById('exportCols').value) || 1;
+    const pad = parseInt(document.getElementById('exportPadding').value) || 0;
+    const preset = document.getElementById('exportSizePreset').value;
+    const origFw = parseInt(document.getElementById('frameWidth').value);
+    const origFh = parseInt(document.getElementById('frameHeight').value);
+    let fw = origFw, fh = origFh;
+    if (preset === 'half') { fw = Math.max(1, Math.floor(origFw / 2)); fh = Math.max(1, Math.floor(origFh / 2)); }
+    else if (preset === 'double') { fw = origFw * 2; fh = origFh * 2; }
+    const num = generatedFrames.length;
+    const rows = Math.ceil(num / cols);
+    document.getElementById('exportSizeText').textContent = `${cols * (fw + pad * 2)} × ${rows * (fh + pad * 2)}`;
+    document.getElementById('exportSizeHint').textContent = preset === 'original' ? '保持原始帧比例尺寸' : preset === 'half' ? '1/2 尺寸导出' : '2x 尺寸导出';
+}
+
+bindRange('exportCols', 'exportColsVal', '');
+bindRange('exportPadding', 'exportPadVal', 'px');
+document.getElementById('exportCols').addEventListener('input', updateExportEstimate);
+document.getElementById('exportPadding').addEventListener('input', updateExportEstimate);
+document.getElementById('exportSizePreset').addEventListener('change', updateExportEstimate);
+
+document.getElementById('exportPngBtn').addEventListener('click', doExportPng);
+document.getElementById('exportGifBtn').addEventListener('click', doExportGif);
+document.getElementById('exportZipBtn').addEventListener('click', doExportZip);
+
+function doExportPng() {
+    if (!generatedSheet) return;
+    const cols = parseInt(document.getElementById('exportCols').value);
+    const pad = parseInt(document.getElementById('exportPadding').value);
+    const preset = document.getElementById('exportSizePreset').value;
+    const origFw = parseInt(document.getElementById('frameWidth').value);
+    const origFh = parseInt(document.getElementById('frameHeight').value);
+    let fw = origFw, fh = origFh;
+    if (preset === 'half') { fw = Math.max(1, Math.floor(origFw / 2)); fh = Math.max(1, Math.floor(origFh / 2)); }
+    else if (preset === 'double') { fw = origFw * 2; fh = origFh * 2; }
+    rebuildSheet(fw, fh, pad, cols).then(canvas => {
+        canvas.toBlob(blob => {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'spritesheet_' + Date.now() + '.png'; a.click();
+        }, 'image/png');
     });
 }
 
-// ============ Download ============
-els.btnDownloadImage.addEventListener('click', () => {
-    if (state.spriteSheet) {
-        const link = document.createElement('a');
-        link.download = `frames_${Date.now()}.png`;
-        link.href = state.spriteSheet;
-        link.click();
-        log('帧表图片已下载', 'info');
+function rebuildSheet(targetFw, targetFh, padding, cols) {
+    return new Promise(resolve => {
+        const num = generatedFrames.length;
+        const rows = Math.ceil(num / cols);
+        const sheetW = cols * (targetFw + padding * 2);
+        const sheetH = rows * (targetFh + padding * 2);
+        const canvas = document.createElement('canvas'); canvas.width = sheetW; canvas.height = sheetH;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = document.getElementById('bgColor').value;
+        ctx.fillRect(0, 0, sheetW, sheetH);
+        let loaded = 0;
+        generatedFrames.forEach((frame, i) => {
+            const row = Math.floor(i / cols), col = i % cols;
+            const x = col * (targetFw + padding * 2) + padding, y = row * (targetFh + padding * 2) + padding;
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = targetFw; tempCanvas.height = targetFh;
+            const tempCtx = tempCanvas.getContext('2d'); tempCtx.imageSmoothingEnabled = false;
+            tempCtx.drawImage(frame.canvas, 0, 0, targetFw, targetFh);
+            ctx.drawImage(tempCanvas, x, y);
+            loaded++;
+        });
+        resolve(canvas);
+    });
+}
+
+async function doExportGif() {
+    if (!generatedFrames.length) return;
+    const btn = document.getElementById('exportGifBtn');
+    btn.disabled = true; btn.textContent = '⏳ 生成中...';
+    const fps = parseFloat(document.getElementById('animPreviewFps').value) || 12;
+    const fw = parseInt(document.getElementById('frameWidth').value);
+    const fh = parseInt(document.getElementById('frameHeight').value);
+    try {
+        const gif = new GIF({ workers: 2, quality: 10, width: fw, height: fh, workerScript: 'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js' });
+        generatedFrames.forEach(frame => {
+            const tempCanvas = document.createElement('canvas'); tempCanvas.width = fw; tempCanvas.height = fh;
+            const ctx = tempCanvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(frame.canvas, 0, 0, fw, fh);
+            gif.addFrame(tempCanvas, { delay: 1000 / fps, copy: true });
+        });
+        gif.on('finished', blob => {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = 'animation_' + Date.now() + '.gif'; a.click();
+            btn.disabled = false; btn.textContent = '⬇ 下载动画 GIF';
+        });
+        gif.render();
+    } catch (e) {
+        alert('GIF 导出失败: ' + e.message);
+        btn.disabled = false; btn.textContent = '⬇ 下载动画 GIF';
     }
-});
+}
 
-els.btnDownloadZip.addEventListener('click', async () => {
-    if (state.frames.length === 0) return;
-    
-    els.progressContainer.classList.add('show');
-    els.progressFill.style.width = '0%';
-    els.progressText.textContent = '准备打包...';
-    
-    // Create zip using JSZip-like implementation (simple version)
-    // Since we can't use external libraries, we'll download frames individually
-    log('开始下载所有帧...', 'info');
-    
-    for (let i = 0; i < state.frames.length; i++) {
-        const frame = state.frames[i];
-        const link = document.createElement('a');
-        link.download = `frame_${String(i + 1).padStart(4, '0')}.jpg`;
-        link.href = frame.dataUrl;
-        link.click();
-        
-        els.progressFill.style.width = ((i + 1) / state.frames.length * 100) + '%';
-        els.progressText.textContent = `下载帧 ${i + 1}/${state.frames.length}...`;
-        
-        await new Promise(r => setTimeout(r, 50));
-    }
-    
-    els.progressContainer.classList.remove('show');
-    log('所有帧下载完成!', 'info');
-});
+async function doExportZip() {
+    if (!generatedFrames.length) return;
+    const btn = document.getElementById('exportZipBtn');
+    btn.disabled = true; btn.textContent = '⏳ 打包中...';
+    const zip = new JSZip();
+    generatedFrames.forEach((frame, i) => {
+        const blob = await new Promise(resolve => frame.canvas.toBlob(resolve, 'image/png'));
+        zip.file(`frame_${String(i+1).padStart(4,'0')}.png`, blob);
+    });
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(content);
+    a.download = 'frames_' + Date.now() + '.zip'; a.click();
+    btn.disabled = false; btn.textContent = '⬇ 下载透明单帧 ZIP';
+}
 
-els.btnReset.addEventListener('click', () => {
-    location.reload();
-});
-
-// ============ Initialize ============
-updateSteps(1);
-log('视频转序列帧表工具已就绪', 'info');
+setStep(1);
 </script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </body>
 </html>
