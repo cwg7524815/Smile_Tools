@@ -231,6 +231,81 @@ button {
   background: #101d37;
 }
 
+.support-stats {
+  position: fixed;
+  right: 18px;
+  top: 132px;
+  z-index: 20;
+  min-width: 168px;
+  padding: 12px 14px;
+  border: 1px solid #2d5b89;
+  border-radius: 8px;
+  color: #b9d7ff;
+  background: rgba(13, 28, 52, 0.94);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.support-stats strong {
+  color: #f6b73c;
+}
+
+.entry-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(5, 9, 20, 0.76);
+  backdrop-filter: blur(6px);
+}
+
+.entry-modal.is-hidden {
+  display: none;
+}
+
+.entry-modal-card {
+  width: min(460px, calc(100vw - 36px));
+  padding: 24px;
+  border: 1px solid #2d5b89;
+  border-radius: 8px;
+  background: #10203a;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.38);
+  text-align: center;
+}
+
+.entry-modal-card h2 {
+  font-size: 22px;
+}
+
+.entry-modal-card p {
+  margin: 18px 0 22px;
+  color: #d8eaff;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.entry-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.entry-modal-actions button,
+.qr-card button {
+  min-height: 42px;
+  font-weight: 800;
+}
+
+.qr-card img {
+  width: min(320px, 82vw);
+  display: block;
+  margin: 18px auto;
+  border-radius: 8px;
+}
+
 .primary-file input {
   display: none;
 }

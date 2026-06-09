@@ -49,5 +49,66 @@
         <span>最后更新日期：2026-06-09</span>
       </footer>
     </main>
+
+    <aside class="support-stats" aria-label="支持统计">
+      <div>捧人场数：<strong id="applauseCount">0</strong></div>
+      <div>捧钱场数：<strong id="moneyCount">0</strong></div>
+    </aside>
+
+    <div id="entryModal" class="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
+      <div class="entry-modal-card">
+        <h2 id="entryModalTitle">你被一阵敲锣声吸引住了</h2>
+        <p>有钱的捧个钱场，没钱的捧个人场</p>
+        <div class="entry-modal-actions">
+          <button id="supportMoneyBtn" class="success" type="button">给主播充算力</button>
+          <button id="supportApplauseBtn" class="ghost" type="button">给主播鼓掌</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="qrModal" class="entry-modal is-hidden" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle">
+      <div class="entry-modal-card qr-card">
+        <h2 id="qrModalTitle">给主播充算力</h2>
+        <img src="./support-qr.jpg" alt="微信支付二维码">
+        <button id="closeQrBtn" class="ghost" type="button">关闭</button>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        const applauseKey = "smile_tools_applause_count";
+        const moneyKey = "smile_tools_money_count";
+        const entryModal = document.getElementById("entryModal");
+        const qrModal = document.getElementById("qrModal");
+        const applauseCount = document.getElementById("applauseCount");
+        const moneyCount = document.getElementById("moneyCount");
+        const readCount = (key) => Number(localStorage.getItem(key) || "0");
+        const writeCount = (key, value) => localStorage.setItem(key, String(value));
+        const renderCounts = () => {
+          applauseCount.textContent = readCount(applauseKey);
+          moneyCount.textContent = readCount(moneyKey);
+        };
+        const enterHome = () => entryModal.classList.add("is-hidden");
+
+        document.getElementById("supportApplauseBtn").addEventListener("click", () => {
+          writeCount(applauseKey, readCount(applauseKey) + 1);
+          renderCounts();
+          enterHome();
+        });
+
+        document.getElementById("supportMoneyBtn").addEventListener("click", () => {
+          writeCount(moneyKey, readCount(moneyKey) + 1);
+          renderCounts();
+          enterHome();
+          qrModal.classList.remove("is-hidden");
+        });
+
+        document.getElementById("closeQrBtn").addEventListener("click", () => {
+          qrModal.classList.add("is-hidden");
+        });
+
+        renderCounts();
+      })();
+    </script>
   </body>
 </html>
