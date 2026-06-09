@@ -3,298 +3,51 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Smile 视频帧动画分割工具</title>
+    <title>微笑独立游戏开发工具包</title>
     <link rel="stylesheet" href="./style.css">
   </head>
   <body>
-    <main class="app-shell">
+    <main class="app-shell toolkit-home">
       <header class="topbar">
         <div class="brand-title">
           <img class="brand-avatar" src="./头像.png" alt="">
           <div>
             <p class="eyebrow">微笑独立游戏开发</p>
-            <h1>视频帧处理工具 <span class="version-badge">V1.2.0版本</span></h1>
+            <h1>微笑独立游戏开发工具包</h1>
           </div>
-        </div>
-        <div class="top-actions">
-          <label class="primary-file">
-            <input id="videoInput" type="file" accept="video/*">
-            选择视频
-          </label>
         </div>
       </header>
 
-      <section class="workspace">
-        <section class="stage-panel">
-          <div id="dropZone" class="drop-zone">
-            <canvas id="previewCanvas" width="960" height="540"></canvas>
-            <div id="emptyState" class="empty-state">
-              <strong>拖入或选择本地视频</strong>
-              <span>视频只在浏览器中读取，不会上传到服务器。</span>
-            </div>
-          </div>
+      <section class="toolkit-panel">
+        <div class="toolkit-table-header">
+          <span>图标</span>
+          <span>名字</span>
+          <span>介绍</span>
+          <span>版本</span>
+          <span>最后更新时间</span>
+        </div>
 
-          <div class="timeline">
-            <button id="playBtn" class="icon-button" type="button" aria-label="播放或暂停">▶</button>
-            <input id="seekRange" type="range" min="0" max="1000" value="0">
-            <span id="timeLabel">0:00 / 0:00</span>
-          </div>
+        <a class="tool-row" href="./video.html" target="_blank" rel="noopener">
+          <span class="tool-icon">视</span>
+          <strong>视频帧处理工具</strong>
+          <span>本地视频按网格分割，抠背景后导出序列帧或合成图。</span>
+          <span class="version-badge">V1.2.5</span>
+          <time datetime="2026-06-09">2026-06-09</time>
+        </a>
 
-          <div class="controls-grid">
-            <label>行
-              <input id="rowsInput" type="number" min="1" max="12" value="3">
-            </label>
-            <label>列
-              <input id="colsInput" type="number" min="1" max="12" value="3">
-            </label>
-            <label>帧率
-              <input id="fpsInput" type="number" min="1" max="30" value="5">
-            </label>
-            <label>最大秒数
-              <input id="maxSecondsInput" type="number" min="0" step="0.5" value="0">
-            </label>
-            <button id="resetGridBtn" class="ghost" type="button">重置网格</button>
-          </div>
-          <section class="settings">
-            <article class="settings-panel">
-              <div class="section-title">
-                <h2>抠背景</h2>
-                <button id="resetMatteBtn" class="ghost compact-btn" type="button">重置</button>
-                <button id="advancedMatteBtn" class="ghost compact-btn" type="button">高级参数</button>
-                <label class="switch">
-                  <input id="matteEnabled" type="checkbox" checked>
-                  <span>启用</span>
-                </label>
-              </div>
-              <div class="settings-grid">
-                <label>抠图模式
-                  <select id="keyModeInput">
-                    <option value="color">色键抠图</option>
-                    <option value="luma-black">Luma 去黑底</option>
-                    <option value="luma-white">Luma 去白底</option>
-                  </select>
-                </label>
-                <label data-mode="color">背景色
-                  <input id="bgColorInput" type="color" value="#12c91d">
-                </label>
-                <label data-mode="color">容差
-                  <input id="toleranceInput" type="range" min="0" max="220" value="50">
-                  <output id="toleranceValue">50</output>
-                </label>
-                <label data-mode="color" data-advanced="true">边缘柔化
-                  <input id="softnessInput" type="range" min="0" max="120" value="20">
-                  <output id="softnessValue">20</output>
-                </label>
-                <label data-mode="color luma" data-advanced="true">透明阈值
-                  <input id="alphaCutInput" type="range" min="0" max="255" value="0">
-                  <output id="alphaCutValue">0</output>
-                </label>
-                <label data-mode="color">去绿边
-                  <input id="despillInput" type="range" min="0" max="100" value="0">
-                  <output id="despillValue">0</output>
-                </label>
-                <label data-mode="color">去色目标
-                  <select id="spillTargetInput">
-                    <option value="background">背景色</option>
-                    <option value="sample" selected>取样色</option>
-                    <option value="red">红色</option>
-                    <option value="yellow">黄色</option>
-                    <option value="green">绿色</option>
-                    <option value="cyan">青色</option>
-                    <option value="blue">蓝色</option>
-                    <option value="magenta">洋红</option>
-                  </select>
-                </label>
-                <label data-mode="color">去色取样
-                  <div class="sample-control">
-                    <input id="spillColorInput" type="color" value="#12c91d">
-                    <button id="sampleSpillBtn" class="ghost" type="button">取样</button>
-                  </div>
-                </label>
-                <label data-mode="color">目标色去饱和
-                  <input id="spillDesaturateInput" type="range" min="0" max="100" value="0">
-                  <output id="spillDesaturateValue">0</output>
-                </label>
-                <label data-mode="color luma">边缘收缩
-                  <input id="edgeShrinkInput" type="range" min="0" max="80" value="0">
-                  <output id="edgeShrinkValue">0</output>
-                </label>
-                <label data-mode="color" data-advanced="true">色相范围
-                  <input id="spillHueRangeInput" type="range" min="8" max="90" value="8">
-                  <output id="spillHueRangeValue">8</output>
-                </label>
-                <label data-mode="luma">亮度阈值
-                  <input id="lumaThresholdInput" type="range" min="0" max="255" value="35">
-                  <output id="lumaThresholdValue">35</output>
-                </label>
-                <label data-mode="luma" data-advanced="true">亮度柔化
-                  <input id="lumaSoftnessInput" type="range" min="1" max="180" value="55">
-                  <output id="lumaSoftnessValue">55</output>
-                </label>
-                <label data-mode="luma" data-advanced="true">透明强度
-                  <input id="lumaStrengthInput" type="range" min="0" max="100" value="100">
-                  <output id="lumaStrengthValue">100</output>
-                </label>
-                <label data-mode="luma">保留光效
-                  <input id="lumaGlowInput" type="range" min="0" max="100" value="100">
-                  <output id="lumaGlowValue">100</output>
-                </label>
-                <label data-mode="color luma" data-advanced="true">边缘净化
-                  <input id="edgeCleanInput" type="range" min="0" max="100" value="0">
-                  <output id="edgeCleanValue">0</output>
-                </label>
-                <label data-mode="color luma" data-advanced="true">Alpha扩张
-                  <input id="alphaGrowInput" type="range" min="-4" max="4" value="0">
-                  <output id="alphaGrowValue">0</output>
-                </label>
-                <label data-mode="color luma" data-advanced="true">Alpha羽化
-                  <input id="alphaFeatherInput" type="range" min="0" max="6" value="1">
-                  <output id="alphaFeatherValue">1</output>
-                </label>
-                <label data-mode="color luma" data-advanced="true">透明清理
-                  <input id="transparentCleanInput" type="range" min="0" max="100" value="0">
-                  <output id="transparentCleanValue">0</output>
-                </label>
-              </div>
-            </article>
-
-            <article class="settings-panel">
-              <div class="section-title">
-                <h2>区域涂抹</h2>
-                <button id="clearMasksBtn" class="ghost" type="button">清空涂抹</button>
-              </div>
-              <div class="mask-tools">
-                <label class="tool-choice">
-                  <input type="radio" name="maskTool" value="none" checked>
-                  <span>拖网格</span>
-                </label>
-                <label class="tool-choice erase">
-                  <input type="radio" name="maskTool" value="erase">
-                  <span>删除区域</span>
-                </label>
-                <label class="tool-choice protect">
-                  <input type="radio" name="maskTool" value="protect">
-                  <span>保护区域</span>
-                </label>
-                <label>笔刷大小
-                  <input id="brushSizeInput" type="range" min="4" max="120" value="28">
-                  <output id="brushSizeValue">28</output>
-                </label>
-              </div>
-            </article>
-          </section>
-          <div id="frameEditor" class="frame-editor is-empty">
-            <div class="section-title">
-              <h2>帧位置调整</h2>
-              <span id="frameEditorInfo">未选择</span>
-            </div>
-            <div class="frame-editor-hint">方向键微调 1px，Shift + 方向键调整 10px</div>
-            <div class="frame-editor-layout">
-              <canvas id="frameEditorCanvas" width="520" height="300"></canvas>
-              <div class="frame-editor-side">
-                <div class="frame-editor-controls">
-                  <button id="framePlayBtn" class="ghost" type="button">播放</button>
-                  <label>X
-                    <input id="frameOffsetXInput" type="number" value="0">
-                  </label>
-                  <label>Y
-                    <input id="frameOffsetYInput" type="number" value="0">
-                  </label>
-                  <button id="resetFrameOffsetBtn" class="ghost" type="button">重置本帧</button>
-                </div>
-                <div id="frameStrip" class="frame-strip"></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <aside class="side-panel">
-          <div class="matte-preview">
-            <div class="section-title">
-              <h2>抠背景预览</h2>
-              <button id="floatPreviewBtn" class="float-preview-btn" type="button">浮窗预览</button>
-            </div>
-            <canvas id="mattePreviewCanvas" width="260" height="180"></canvas>
-            <div class="preview-controls">
-              <label>预览行
-                <input id="previewRowInput" type="number" min="1" max="12" value="1">
-              </label>
-              <label>预览列
-                <input id="previewColInput" type="number" min="1" max="12" value="1">
-              </label>
-            </div>
-          </div>
-          <article class="settings-panel side-settings">
-            <div class="section-title">
-              <h2>居中对齐</h2>
-              <label class="switch">
-                <input id="centerEnabled" type="checkbox" checked>
-                <span>启用</span>
-              </label>
-            </div>
-            <div class="side-settings-grid">
-              <label>内边距
-                <input id="paddingInput" type="range" min="0" max="48" value="8">
-                <output id="paddingValue">8</output>
-              </label>
-              <label>水平偏移
-                <input id="offsetXInput" type="range" min="-80" max="80" value="0">
-                <output id="offsetXValue">0</output>
-              </label>
-              <label>垂直偏移
-                <input id="offsetYInput" type="range" min="-80" max="80" value="0">
-                <output id="offsetYValue">0</output>
-              </label>
-              <label>导出列数
-                <input id="sheetColsInput" type="number" min="1" max="32" value="5">
-              </label>
-              <label>导出方式
-                <select id="exportModeInput">
-                  <option value="frames">单张序列帧</option>
-                  <option value="person-sheets">每个格子一张大图</option>
-                  <option value="combined-sheet">全部合成一张大图</option>
-                </select>
-              </label>
-              <button id="extractBtn" class="success extract-large" type="button">提取序列帧</button>
-            </div>
-          </article>
-          <div class="section-title results-title">
-            <h2>分割结果</h2>
-            <span id="resultCount">0 项</span>
-          </div>
-          <div class="export-actions">
-            <button id="selectAllBtn" class="ghost" type="button">全选</button>
-            <button id="pickFolderBtn" class="ghost" type="button">选择路径</button>
-            <button id="exportFolderBtn" class="warning" type="button">导出到文件夹</button>
-          </div>
-          <div class="folder-status" id="folderStatus">未选择输出路径</div>
-          <div id="resultsList" class="results-list"></div>
-        </aside>
+        <a class="tool-row" href="./matting.html" target="_blank" rel="noopener">
+          <span class="tool-icon">图</span>
+          <strong>图片抠图工具</strong>
+          <span>全前端图片抠图，支持色键、去黑白底、预览缩放和区域保护。</span>
+          <span class="version-badge">V1.1.2</span>
+          <time datetime="2026-06-09">2026-06-09</time>
+        </a>
       </section>
 
-      <div id="previewModal" class="preview-modal is-hidden" role="dialog" aria-labelledby="previewModalTitle">
-        <div class="preview-modal-card">
-          <div id="previewModalHeader" class="section-title preview-modal-header">
-            <h2 id="previewModalTitle">抠背景预览</h2>
-            <div class="preview-zoom-controls">
-              <button id="zoomOutPreviewBtn" class="ghost" type="button">-</button>
-              <button id="zoomResetPreviewBtn" class="ghost" type="button">100%</button>
-              <button id="zoomInPreviewBtn" class="ghost" type="button">+</button>
-              <button id="closePreviewModalBtn" class="ghost" type="button">关闭</button>
-            </div>
-          </div>
-          <div id="previewInfo" class="preview-modal-info">当前帧</div>
-          <div id="largePreviewViewport" class="large-preview-viewport">
-            <canvas id="largePreviewCanvas" width="900" height="620"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <video id="sourceVideo" muted playsinline></video>
-      <canvas id="workCanvas"></canvas>
-      <canvas id="cellCanvas"></canvas>
+      <footer class="toolkit-footer">
+        <span>Copyright©️微笑独立游戏开发个人所有</span>
+        <span>最后更新日期：2026-06-09</span>
+      </footer>
     </main>
-
-    <script src="./app.js"></script>
   </body>
 </html>

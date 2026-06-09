@@ -38,13 +38,15 @@ const els = {
   zoomOutPreviewBtn: $("zoomOutPreviewBtn"),
   zoomResetPreviewBtn: $("zoomResetPreviewBtn"),
   zoomInPreviewBtn: $("zoomInPreviewBtn"),
+  largePreviewBgInput: $("largePreviewBgInput"),
+  previewCheckerBtn: $("previewCheckerBtn"),
   largePreviewViewport: $("largePreviewViewport"),
   largePreviewCanvas: $("largePreviewCanvas"),
   previewRowInput: $("previewRowInput"),
   previewColInput: $("previewColInput"),
   folderStatus: $("folderStatus"),
   selectAllBtn: $("selectAllBtn"),
-  pickFolderBtn: $("pickFolderBtn"),
+  projectNameInput: $("projectNameInput"),
   exportFolderBtn: $("exportFolderBtn"),
   matteEnabled: $("matteEnabled"),
   resetMatteBtn: $("resetMatteBtn"),
@@ -89,8 +91,8 @@ const cellCtx = els.cellCanvas.getContext("2d", { willReadFrequently: true });
 const state = {
   videoUrl: "",
   display: { x: 0, y: 0, w: 0, h: 0 },
-  cols: 3,
-  rows: 3,
+  cols: 1,
+  rows: 1,
   xLines: [],
   yLines: [],
   drag: null,
@@ -113,6 +115,7 @@ const state = {
   },
   floatingPreview: {
     zoom: 1,
+    bgColor: "",
     dragging: false,
     dragStart: null,
     origin: { x: 28, y: 28 },
@@ -133,11 +136,25 @@ let mattePreviewTimer = 0;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const pad2 = (n) => String(n).padStart(2, "0");
+const trimExtension = (name) => name.replace(/\.[^.]+$/, "");
+const OUTPUT_DIR_DB = "smile_video_frame_tool";
+const OUTPUT_DIR_STORE = "handles";
+const OUTPUT_DIR_KEY = "last_output_dir";
+
+function safeFileName(name, fallback = "untitled") {
+  const cleaned = String(name || "")
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "_")
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/[. ]+$/g, "");
+  return cleaned || fallback;
+}
 
 const MATTE_DEFAULTS = {
   color: {
     bgColorInput: "#12c91d",
-    toleranceInput: 50,
+    toleranceInput: 20,
     softnessInput: 20,
     alphaCutInput: 0,
     despillInput: 0,
@@ -147,7 +164,7 @@ const MATTE_DEFAULTS = {
     edgeShrinkInput: 0,
     spillHueRangeInput: 8,
     edgeCleanInput: 0,
-    alphaGrowInput: 0,
+    alphaGrowInput: 1,
     alphaFeatherInput: 1,
     transparentCleanInput: 0,
   },
@@ -159,7 +176,7 @@ const MATTE_DEFAULTS = {
     lumaStrengthInput: 100,
     lumaGlowInput: 100,
     edgeCleanInput: 0,
-    alphaGrowInput: 0,
+    alphaGrowInput: 1,
     alphaFeatherInput: 1,
     transparentCleanInput: 0,
   },
@@ -386,6 +403,7 @@ function setVideoFile(file) {
   if (!file || !file.type.startsWith("video/")) return;
   if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
   state.videoUrl = URL.createObjectURL(file);
+  els.projectNameInput.value = safeFileName(trimExtension(file.name), "SmileVideoFrames");
   els.sourceVideo.src = state.videoUrl;
   els.sourceVideo.load();
   els.emptyState.style.display = "none";
@@ -739,31 +757,16 @@ function cloneCanvas(canvas) {
 function centerCanvas(canvas, options) {
   const srcCtx = canvas.getContext("2d", { willReadFrequently: true });
   const img = srcCtx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = img.data;
-  let minX = canvas.width;
-  let minY = canvas.height;
-  let maxX = -1;
-  let maxY = -1;
-
-  for (let y = 0; y < canvas.height; y++) {
-    for (let x = 0; x < canvas.width; x++) {
-      if (data[(y * canvas.width + x) * 4 + 3] > options.alphaCut) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-  }
+  const bounds = mainContentBounds(img.data, canvas.width, canvas.height, options.alphaCut);
 
   const out = document.createElement("canvas");
   out.width = canvas.width;
   out.height = canvas.height;
   const outCtx = out.getContext("2d");
-  if (maxX < minX || maxY < minY) return out;
+  if (!bounds) return out;
 
-  const sw = maxX - minX + 1;
-  const sh = maxY - minY + 1;
+  const sw = bounds.maxX - bounds.minX + 1;
+  const sh = bounds.maxY - bounds.minY + 1;
   const maxW = Math.max(1, canvas.width - options.padding * 2);
   const maxH = Math.max(1, canvas.height - options.padding * 2);
   const scale = Math.min(1, maxW / sw, maxH / sh);
@@ -772,8 +775,77 @@ function centerCanvas(canvas, options) {
   const dx = (canvas.width - dw) / 2 + options.offsetX;
   const dy = (canvas.height - dh) / 2 + options.offsetY;
   outCtx.imageSmoothingEnabled = false;
-  outCtx.drawImage(canvas, minX, minY, sw, sh, dx, dy, dw, dh);
+  outCtx.drawImage(canvas, bounds.minX, bounds.minY, sw, sh, dx, dy, dw, dh);
   return out;
+}
+
+function mainContentBounds(data, width, height, alphaCut) {
+  const threshold = Math.max(1, alphaCut);
+  const visited = new Uint8Array(width * height);
+  const components = [];
+  const stack = [];
+
+  for (let start = 0; start < visited.length; start++) {
+    if (visited[start] || data[start * 4 + 3] <= threshold) continue;
+    let count = 0;
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    visited[start] = 1;
+    stack.push(start);
+
+    while (stack.length) {
+      const index = stack.pop();
+      const x = index % width;
+      const y = Math.floor(index / width);
+      count++;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+
+      for (let oy = -1; oy <= 1; oy++) {
+        const yy = y + oy;
+        if (yy < 0 || yy >= height) continue;
+        for (let ox = -1; ox <= 1; ox++) {
+          if (!ox && !oy) continue;
+          const xx = x + ox;
+          if (xx < 0 || xx >= width) continue;
+          const next = yy * width + xx;
+          if (visited[next] || data[next * 4 + 3] <= threshold) continue;
+          visited[next] = 1;
+          stack.push(next);
+        }
+      }
+    }
+
+    if (count >= 8) components.push({ count, minX, minY, maxX, maxY });
+  }
+
+  if (!components.length) return null;
+  components.sort((a, b) => b.count - a.count);
+  const main = components[0];
+  const gapLimit = Math.max(width, height) * 0.12;
+  let bounds = { ...main };
+
+  for (const component of components.slice(1)) {
+    const sizeRatio = component.count / main.count;
+    const closeToMain = componentGap(component, main) <= gapLimit;
+    if (sizeRatio < 0.35 && !(sizeRatio >= 0.04 && closeToMain)) continue;
+    bounds.minX = Math.min(bounds.minX, component.minX);
+    bounds.minY = Math.min(bounds.minY, component.minY);
+    bounds.maxX = Math.max(bounds.maxX, component.maxX);
+    bounds.maxY = Math.max(bounds.maxY, component.maxY);
+  }
+
+  return bounds;
+}
+
+function componentGap(a, b) {
+  const xGap = Math.max(0, Math.max(a.minX, b.minX) - Math.min(a.maxX, b.maxX) - 1);
+  const yGap = Math.max(0, Math.max(a.minY, b.minY) - Math.min(a.maxY, b.maxY) - 1);
+  return Math.hypot(xGap, yGap);
 }
 
 function drawMattePreview() {
@@ -854,6 +926,7 @@ function drawCanvasContain(targetCtx, canvas, source) {
 function drawLargePreview(preview = null) {
   if (els.previewModal.classList.contains("is-hidden")) return;
   const canvas = els.largePreviewCanvas;
+  applyLargePreviewBackground();
   if (!els.sourceVideo.videoWidth || !els.sourceVideo.videoHeight) {
     canvas.style.width = "520px";
     canvas.style.height = "360px";
@@ -876,6 +949,17 @@ function drawLargePreview(preview = null) {
   largePreviewCtx.drawImage(preview, 0, 0, canvas.width, canvas.height);
   els.previewInfo.textContent = preview.info;
   els.zoomResetPreviewBtn.textContent = `${Math.round(state.floatingPreview.zoom * 100)}%`;
+}
+
+function applyLargePreviewBackground() {
+  const canvas = els.largePreviewCanvas;
+  if (state.floatingPreview.bgColor) {
+    canvas.classList.add("has-solid-bg");
+    canvas.style.backgroundColor = state.floatingPreview.bgColor;
+    return;
+  }
+  canvas.classList.remove("has-solid-bg");
+  canvas.style.backgroundColor = "";
 }
 
 function setFloatingPreviewZoom(nextZoom) {
@@ -923,8 +1007,11 @@ async function extractFrames() {
     const totalFrames = Math.max(1, Math.floor(duration * fps) + 1);
     const { xs, ys } = getBounds();
     const options = settings();
+    const baseName = safeFileName(els.projectNameInput.value, "SmileVideoFrames");
     const buckets = Array.from({ length: state.rows * state.cols }, (_, i) => ({
       id: i + 1,
+      name: `${baseName}_${pad2(i + 1)}`,
+      keywords: "",
       frames: [],
       offsets: [],
       kept: [],
@@ -1015,19 +1102,44 @@ function renderResults() {
     const img = document.createElement("img");
     img.src = adjustedCanvas(item, 0).toDataURL("image/png");
     const text = document.createElement("div");
-    text.innerHTML = `<strong>人物 ${item.id}</strong><span>${item.frames.length} 帧</span>`;
+    text.className = "result-meta";
+    const nameInput = document.createElement("input");
+    nameInput.className = "result-name-input";
+    nameInput.value = item.name || `人物 ${item.id}`;
+    nameInput.addEventListener("change", () => {
+      item.name = safeFileName(nameInput.value, `person_${pad2(item.id)}`);
+      nameInput.value = item.name;
+    });
+    const keywordInput = document.createElement("input");
+    keywordInput.className = "result-keywords-input";
+    keywordInput.placeholder = "关键词，如：移动，走路";
+    keywordInput.value = item.keywords || "";
+    keywordInput.addEventListener("change", () => {
+      item.keywords = keywordInput.value.trim();
+    });
+    const count = document.createElement("span");
+    count.className = "result-frame-count";
+    count.textContent = `${item.frames.length} 帧`;
+    text.append(nameInput, keywordInput);
     const adjust = document.createElement("button");
     adjust.type = "button";
     adjust.className = "adjust-frame-btn";
     adjust.textContent = "帧调整";
     adjust.addEventListener("click", () => openFrameEditor(item.id));
-    card.append(check, img, text, adjust);
+    const actions = document.createElement("div");
+    actions.className = "result-actions";
+    actions.append(adjust, count);
+    card.append(check, img, text, actions);
     els.resultsList.append(card);
   }
 }
 
 function selectedResults() {
   return state.results.filter((item) => state.selected.has(item.id));
+}
+
+function resultFileName(item) {
+  return safeFileName(item.name, `${safeFileName(els.projectNameInput.value, "item")}_${pad2(item.id)}`);
 }
 
 function adjustedCanvas(item, frameIndex) {
@@ -1300,16 +1412,100 @@ async function pickOutputFolder() {
     alert("当前浏览器不支持直接选择文件夹写入。请用 Chrome 或 Edge 打开 localhost 页面。");
     return null;
   }
-  state.outputDir = await window.showDirectoryPicker({ mode: "readwrite" });
-  els.folderStatus.textContent = `已选择：${state.outputDir.name}`;
-  return state.outputDir;
+  const previous = state.outputDir || await loadOutputDir();
+  const options = { mode: "readwrite" };
+  if (previous) options.startIn = previous;
+  let handle = null;
+  try {
+    handle = await window.showDirectoryPicker(options);
+  } catch (error) {
+    if (error.name === "AbortError") return null;
+    if (!previous) throw error;
+    handle = await window.showDirectoryPicker({ mode: "readwrite" });
+  }
+  await saveOutputDir(handle);
+  return handle;
 }
 
 async function ensureOutputFolder() {
-  if (!state.outputDir) await pickOutputFolder();
-  if (!state.outputDir) return null;
-  const folderName = `SmileVideoFrames_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}`;
-  return state.outputDir.getDirectoryHandle(folderName, { create: true });
+  const parent = await pickOutputFolder();
+  if (!parent) return null;
+  state.outputDir = parent;
+  els.folderStatus.textContent = `已选择输出路径：${parent.name}`;
+  const folderName = safeFileName(els.projectNameInput.value, "SmileVideoFrames");
+  els.projectNameInput.value = folderName;
+  return parent.getDirectoryHandle(folderName, { create: true });
+}
+
+async function ensureDirectoryPermission(handle) {
+  if (!handle.queryPermission || !handle.requestPermission) return true;
+  const options = { mode: "readwrite" };
+  if ((await handle.queryPermission(options)) === "granted") return true;
+  return (await handle.requestPermission(options)) === "granted";
+}
+
+async function saveOutputDir(handle) {
+  try {
+    const db = await openOutputDirDb();
+    const tx = db.transaction(OUTPUT_DIR_STORE, "readwrite");
+    tx.objectStore(OUTPUT_DIR_STORE).put(handle, OUTPUT_DIR_KEY);
+    await transactionDone(tx);
+    db.close();
+  } catch {
+    // Some browsers only keep the handle in memory; export still works for this session.
+  }
+}
+
+async function loadOutputDir() {
+  try {
+    const db = await openOutputDirDb();
+    const tx = db.transaction(OUTPUT_DIR_STORE, "readonly");
+    const request = tx.objectStore(OUTPUT_DIR_STORE).get(OUTPUT_DIR_KEY);
+    const handle = await requestResult(request);
+    await transactionDone(tx);
+    db.close();
+    return handle || null;
+  } catch {
+    return null;
+  }
+}
+
+function openOutputDirDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(OUTPUT_DIR_DB, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(OUTPUT_DIR_STORE);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function requestResult(request) {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function transactionDone(tx) {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+async function createExportBatchFolder(root, base, mode) {
+  const suffix = {
+    frames: "frames",
+    "person-sheets": "sheets",
+    "combined-sheet": "combined",
+  }[mode] || "export";
+  const baseName = `${safeFileName(base, "export")}_${suffix}`;
+  const dirName = await uniqueDirectoryName(root, baseName);
+  return {
+    name: dirName,
+    handle: await root.getDirectoryHandle(dirName, { create: true }),
+  };
 }
 
 async function writePng(directory, filename, canvas) {
@@ -1317,6 +1513,104 @@ async function writePng(directory, filename, canvas) {
   const writable = await fileHandle.createWritable();
   await writable.write(await canvasToBlob(canvas));
   await writable.close();
+}
+
+async function uniqueFileName(directory, filename) {
+  const dot = filename.lastIndexOf(".");
+  const base = dot > 0 ? filename.slice(0, dot) : filename;
+  const ext = dot > 0 ? filename.slice(dot) : "";
+  let candidate = filename;
+  let index = 2;
+  while (await fileExists(directory, candidate)) {
+    candidate = `${base}_${index}${ext}`;
+    index++;
+  }
+  return candidate;
+}
+
+async function uniqueDirectoryName(directory, name) {
+  let candidate = name;
+  let index = 2;
+  while (await directoryExists(directory, candidate)) {
+    candidate = `${name}_${index}`;
+    index++;
+  }
+  return candidate;
+}
+
+async function fileExists(directory, filename) {
+  try {
+    await directory.getFileHandle(filename);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function directoryExists(directory, name) {
+  try {
+    await directory.getDirectoryHandle(name);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function writeTextFile(directory, filename, text) {
+  const fileHandle = await directory.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  await writable.close();
+}
+
+function splitKeywords(value) {
+  return String(value || "")
+    .split(/[,\uff0c;；、\s]+/)
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
+}
+
+function buildActionRecord(item, name, frameOrder) {
+  const firstFrame = item.frames[0];
+  return {
+    id: item.id,
+    name,
+    godotAnimationName: safeFileName(name, `animation_${pad2(item.id)}`).toLowerCase(),
+    keywords: splitKeywords(item.keywords),
+    frameCount: frameOrder.length,
+    frameSize: {
+      width: firstFrame ? firstFrame.width : 0,
+      height: firstFrame ? firstFrame.height : 0,
+    },
+    frameOrder,
+  };
+}
+
+function buildExportIndex(records, mode, cols, batchName) {
+  const projectName = safeFileName(els.projectNameInput.value, "SmileVideoFrames");
+  const fps = clamp(Number(els.fpsInput.value) || 1, 1, 30);
+  return {
+    schemaVersion: 1,
+    tool: "Smile Video Frame Tool",
+    projectName,
+    batchName,
+    exportMode: mode,
+    manifestFile: "export_index.json",
+    isSingleSourceOfTruth: true,
+    fps,
+    frameDurationSeconds: 1 / fps,
+    sheetColumns: cols,
+    godot: {
+      targetNode: "AnimatedSprite2D",
+      resource: "SpriteFrames",
+      animationNameField: "actions[].godotAnimationName",
+      frameOrderField: "actions[].frameOrder",
+      frameSizeField: "actions[].frameSize",
+      note: "For frames mode, add each frameOrder file as one SpriteFrames frame. For sheet modes, slice sheet by frameSize and frameOrder/combinedOrder.",
+    },
+    note: "Each action contains its own Godot animation name, keywords, frame size, files, and frameOrder. Play frames by frameOrder order.",
+    actions: records,
+  };
 }
 
 async function exportToFolder() {
@@ -1339,29 +1633,90 @@ async function exportToFolder() {
   try {
     const mode = els.exportModeInput.value;
     const cols = clamp(Number(els.sheetColsInput.value) || 1, 1, 32);
+    const actionRecords = [];
+    let exportedPath = root.name;
 
     if (mode === "frames") {
       for (const item of exportableItems) {
-        const personDir = await root.getDirectoryHandle(`person_${pad2(item.id)}`, { create: true });
+        const itemName = resultFileName(item);
+        const batch = await createExportBatchFolder(root, itemName, mode);
         const indexes = keptFrameIndexes(item);
+        const frameOrder = [];
         for (let i = 0; i < indexes.length; i++) {
-          await writePng(personDir, `frame_${pad2(i + 1)}.png`, adjustedCanvas(item, indexes[i]));
+          const frameName = await uniqueFileName(batch.handle, `${itemName}_${pad2(i + 1)}.png`);
+          await writePng(batch.handle, frameName, adjustedCanvas(item, indexes[i]));
+          frameOrder.push({ order: i + 1, sourceFrameIndex: indexes[i] + 1, file: frameName });
         }
+        const record = buildActionRecord(item, itemName, frameOrder);
+        record.directory = ".";
+        const index = buildExportIndex([record], mode, cols, batch.name);
+        await writeTextFile(batch.handle, "export_index.json", JSON.stringify(index, null, 2));
+        actionRecords.push({ ...record, directory: batch.name });
+        exportedPath = `${root.name}/${batch.name}`;
       }
     }
 
     if (mode === "person-sheets") {
       for (const item of exportableItems) {
-        await writePng(root, `person_${pad2(item.id)}_sheet.png`, makeSheet(adjustedFrames(item), cols));
+        const itemName = resultFileName(item);
+        const batch = await createExportBatchFolder(root, itemName, mode);
+        const indexes = keptFrameIndexes(item);
+        const sheetName = await uniqueFileName(batch.handle, `${itemName}.png`);
+        await writePng(batch.handle, sheetName, makeSheet(adjustedFrames(item), cols));
+        const record = buildActionRecord(item, itemName, indexes.map((frameIndex, index) => ({
+          order: index + 1,
+          sourceFrameIndex: frameIndex + 1,
+          file: sheetName,
+        })));
+        record.sheet = {
+          file: sheetName,
+          columns: cols,
+          rows: Math.ceil(indexes.length / cols),
+          cellWidth: record.frameSize.width,
+          cellHeight: record.frameSize.height,
+          order: "left-to-right, top-to-bottom",
+        };
+        const index = buildExportIndex([record], mode, cols, batch.name);
+        await writeTextFile(batch.handle, "export_index.json", JSON.stringify(index, null, 2));
+        actionRecords.push({ ...record, directory: batch.name });
+        exportedPath = `${root.name}/${batch.name}`;
       }
     }
 
     if (mode === "combined-sheet") {
+      const batch = await createExportBatchFolder(root, safeFileName(els.projectNameInput.value, "combined_sheet"), mode);
+      const exportRoot = batch.handle;
       const frames = exportableItems.flatMap((item) => adjustedFrames(item));
-      await writePng(root, "combined_sheet.png", makeSheet(frames, cols));
+      const combinedName = await uniqueFileName(exportRoot, `${safeFileName(els.projectNameInput.value, "combined_sheet")}.png`);
+      await writePng(exportRoot, combinedName, makeSheet(frames, cols));
+      let startOrder = 1;
+      for (const item of exportableItems) {
+        const itemName = resultFileName(item);
+        const indexes = keptFrameIndexes(item);
+        const frameOrder = indexes.map((frameIndex, index) => ({
+          order: index + 1,
+          sourceFrameIndex: frameIndex + 1,
+          file: combinedName,
+          combinedOrder: startOrder + index,
+        }));
+        const record = buildActionRecord(item, itemName, frameOrder);
+        record.sheet = {
+          file: combinedName,
+          columns: cols,
+          cellWidth: record.frameSize.width,
+          cellHeight: record.frameSize.height,
+          order: "left-to-right, top-to-bottom",
+        };
+        record.combinedRange = { startOrder, endOrder: startOrder + indexes.length - 1 };
+        actionRecords.push(record);
+        startOrder += indexes.length;
+      }
+      const index = buildExportIndex(actionRecords, mode, cols, batch.name);
+      await writeTextFile(exportRoot, "export_index.json", JSON.stringify(index, null, 2));
+      exportedPath = `${root.name}/${batch.name}`;
     }
 
-    els.folderStatus.textContent = `已导出：${root.name}`;
+    els.folderStatus.textContent = `已导出：${exportedPath}`;
   } finally {
     els.exportFolderBtn.disabled = false;
     els.exportFolderBtn.textContent = "导出到文件夹";
@@ -1504,7 +1859,6 @@ for (const input of [els.previewRowInput, els.previewColInput]) input.addEventLi
 els.resetGridBtn.addEventListener("click", initGrid);
 els.clearMasksBtn.addEventListener("click", clearMasks);
 els.extractBtn.addEventListener("click", extractFrames);
-els.pickFolderBtn.addEventListener("click", pickOutputFolder);
 els.exportFolderBtn.addEventListener("click", exportToFolder);
 els.resetMatteBtn.addEventListener("click", applyMatteDefaults);
 els.advancedMatteBtn.addEventListener("click", () => {
@@ -1520,12 +1874,20 @@ els.closePreviewModalBtn.addEventListener("click", closeFloatingPreview);
 els.zoomOutPreviewBtn.addEventListener("click", () => setFloatingPreviewZoom(state.floatingPreview.zoom - 0.25));
 els.zoomInPreviewBtn.addEventListener("click", () => setFloatingPreviewZoom(state.floatingPreview.zoom + 0.25));
 els.zoomResetPreviewBtn.addEventListener("click", () => setFloatingPreviewZoom(1));
+els.largePreviewBgInput.addEventListener("input", () => {
+  state.floatingPreview.bgColor = els.largePreviewBgInput.value;
+  applyLargePreviewBackground();
+});
+els.previewCheckerBtn.addEventListener("click", () => {
+  state.floatingPreview.bgColor = "";
+  applyLargePreviewBackground();
+});
 els.largePreviewViewport.addEventListener("wheel", (event) => {
   event.preventDefault();
   setFloatingPreviewZoom(state.floatingPreview.zoom + (event.deltaY < 0 ? 0.1 : -0.1));
 });
 els.previewModalHeader.addEventListener("pointerdown", (event) => {
-  if (event.target.closest("button")) return;
+  if (event.target.closest(".preview-zoom-controls")) return;
   state.floatingPreview.dragging = true;
   state.floatingPreview.dragStart = { x: event.clientX, y: event.clientY };
   state.floatingPreview.dragOrigin = { ...state.floatingPreview.origin };

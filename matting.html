@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Smile 图片抠图工具</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="app-shell matting-app">
+      <header class="topbar">
+        <div class="brand-title">
+          <img class="brand-avatar" src="./头像.png" alt="">
+          <div>
+            <p class="eyebrow">Smile 图片处理</p>
+            <h1>图片抠图工具 <span class="version-badge">V1.1.2版本</span></h1>
+          </div>
+        </div>
+        <div class="top-actions">
+          <label class="primary-file">
+            <input id="imageInput" type="file" accept="image/*">
+            选择图片
+          </label>
+        </div>
+      </header>
+
+      <section class="matting-workspace">
+        <section class="matting-stage">
+          <div class="matting-pathbar">
+            <span>当前图片</span>
+            <strong id="imagePath">未选择图片</strong>
+            <em id="imageInfo">未载入</em>
+            <em class="protect-hint">双击保护/取消区域</em>
+            <div class="preview-toolbar" aria-label="预览模式">
+              <input id="previewBgInput" class="preview-color is-hidden" type="color" value="#111827" aria-label="预览背景色">
+              <button class="ghost compact-btn preview-mode-btn is-active" type="button" data-preview-mode="checker">透明预览</button>
+              <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="solid">背景预览</button>
+              <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="alpha">Alpha预览</button>
+            </div>
+          </div>
+
+          <div id="imageDropZone" class="matting-drop-zone">
+            <canvas id="resultCanvas" class="is-hidden" width="900" height="620"></canvas>
+            <canvas id="protectCanvas" class="hidden-canvas" width="900" height="620"></canvas>
+            <div id="imageEmptyState" class="empty-state">
+              <strong>拖入或选择本地图片</strong>
+              <span>支持 PNG、JPG、WebP。图片只在浏览器内处理。</span>
+            </div>
+          </div>
+
+          <canvas id="sourceCanvas" class="hidden-canvas" width="900" height="620"></canvas>
+          <canvas id="alphaCanvas" class="hidden-canvas" width="900" height="620"></canvas>
+        </section>
+
+        <aside class="matting-side">
+          <article class="settings-panel side-settings">
+            <div class="section-title">
+              <h2>抠图参数</h2>
+              <button id="resetBtn" class="ghost compact-btn" type="button">重置</button>
+            </div>
+            <div class="matting-settings-grid">
+              <label>抠图模式
+                <select id="modeInput">
+                  <option value="color">色键抠图</option>
+                  <option value="luma-black">去黑底</option>
+                  <option value="luma-white">去白底</option>
+                </select>
+              </label>
+              <label data-mode="color">背景色
+                <input id="bgColorInput2" type="color" value="#12c91d">
+              </label>
+              <button id="sampleColorBtn" class="ghost" type="button">从图片取样</button>
+              <label data-mode="color">容差
+                <input id="toleranceInput2" type="range" min="0" max="220" value="28">
+                <output id="toleranceValue2">28</output>
+              </label>
+              <label data-mode="color">边缘柔化
+                <input id="softnessInput2" type="range" min="0" max="160" value="36">
+                <output id="softnessValue2">36</output>
+              </label>
+              <label data-mode="luma">亮度阈值
+                <input id="lumaThresholdInput2" type="range" min="0" max="255" value="35">
+                <output id="lumaThresholdValue2">35</output>
+              </label>
+              <label data-mode="luma">亮度柔化
+                <input id="lumaSoftnessInput2" type="range" min="1" max="180" value="55">
+                <output id="lumaSoftnessValue2">55</output>
+              </label>
+              <label>Alpha 阈值
+                <input id="alphaCutInput2" type="range" min="0" max="255" value="8">
+                <output id="alphaCutValue2">8</output>
+              </label>
+              <label>Alpha 扩张
+                <input id="alphaGrowInput2" type="range" min="-4" max="4" value="0">
+                <output id="alphaGrowValue2">0</output>
+              </label>
+              <label>Alpha 羽化
+                <input id="alphaFeatherInput2" type="range" min="0" max="6" value="1">
+                <output id="alphaFeatherValue2">1</output>
+              </label>
+              <label data-mode="color">去溢色
+                <input id="despillInput2" type="range" min="0" max="100" value="25">
+                <output id="despillValue2">25</output>
+              </label>
+              <label>边缘净化
+                <input id="edgeCleanInput2" type="range" min="0" max="100" value="35">
+                <output id="edgeCleanValue2">35</output>
+              </label>
+              <label>透明像素清理
+                <input id="transparentCleanInput2" type="range" min="0" max="100" value="80">
+                <output id="transparentCleanValue2">80</output>
+              </label>
+            </div>
+          </article>
+
+          <article class="settings-panel side-settings">
+            <div class="section-title">
+              <h2>导出</h2>
+            </div>
+            <label class="project-name-field">文件名
+              <input id="fileNameInput" type="text" value="SmileMatting">
+            </label>
+            <button id="exportBtn" class="success export-folder-wide" type="button">导出透明 PNG</button>
+            <button id="downloadAlphaBtn" class="ghost export-folder-wide" type="button">导出 Alpha 蒙版</button>
+          </article>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./matting.js"></script>
+  </body>
+</html>
