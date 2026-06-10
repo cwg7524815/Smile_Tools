@@ -58,11 +58,6 @@
       </footer>
     </main>
 
-    <aside class="support-stats" aria-label="支持统计">
-      <div>捧人场数：<strong id="applauseCount">0</strong></div>
-      <div>捧钱场数：<strong id="moneyCount">0</strong></div>
-    </aside>
-
     <div id="entryModal" class="entry-modal" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
       <div class="entry-modal-card">
         <h2 id="entryModalTitle">你被一阵敲锣声吸引住了</h2>
@@ -84,54 +79,15 @@
 
     <script>
       (() => {
-        const supportApiBase = "http://43.136.181.211:8001";
         const entryModal = document.getElementById("entryModal");
         const qrModal = document.getElementById("qrModal");
-        const applauseCount = document.getElementById("applauseCount");
-        const moneyCount = document.getElementById("moneyCount");
-        const renderCounts = (stats) => {
-          applauseCount.textContent = Number(stats.applause) || 0;
-          moneyCount.textContent = Number(stats.money) || 0;
-        };
-        const apiFetch = async (path, options = {}) => {
-          const controller = new AbortController();
-          const timer = setTimeout(() => controller.abort(), 1500);
-          try {
-            return await fetch(`${supportApiBase}${path}`, {
-              ...options,
-              signal: controller.signal,
-            });
-          } finally {
-            clearTimeout(timer);
-          }
-        };
-        const loadStats = async () => {
-          try {
-            const response = await apiFetch("/api/support/stats", { cache: "no-store" });
-            if (!response.ok) throw new Error("stats request failed");
-            renderCounts(await response.json());
-          } catch {
-            renderCounts({ applause: 0, money: 0 });
-          }
-        };
-        const increase = async (kind) => {
-          try {
-            const response = await apiFetch(`/api/support/${kind}`, { method: "POST" });
-            if (!response.ok) throw new Error("increase request failed");
-            renderCounts(await response.json());
-          } catch {
-            loadStats();
-          }
-        };
         const enterHome = () => entryModal.classList.add("is-hidden");
 
         document.getElementById("supportApplauseBtn").addEventListener("click", () => {
-          increase("applause");
           enterHome();
         });
 
         document.getElementById("supportMoneyBtn").addEventListener("click", () => {
-          increase("money");
           enterHome();
           qrModal.classList.remove("is-hidden");
         });
@@ -140,7 +96,6 @@
           qrModal.classList.add("is-hidden");
         });
 
-        loadStats();
       })();
     </script>
   </body>
