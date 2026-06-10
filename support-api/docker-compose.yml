@@ -1,0 +1,13 @@
+services:
+  smile-support-api:
+    build: .
+    container_name: smile-support-api
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: "8001"
+      DATA_DIR: "/data"
+      ALLOWED_ORIGINS: "https://cwg7524815.github.io,http://127.0.0.1:4173,http://localhost:4173"
+    volumes:
+      - ./data:/data

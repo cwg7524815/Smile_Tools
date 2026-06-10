@@ -47,7 +47,7 @@
           <span class="tool-icon">插</span>
           <strong>图层遮挡插件</strong>
           <span>Godot大地图遮挡插件</span>
-          <span class="version-badge">1.0</span>
+          <span class="version-badge">V1.0</span>
           <time datetime="2026-06-10">2026-06-10</time>
         </a>
       </section>
@@ -84,29 +84,54 @@
 
     <script>
       (() => {
-        const applauseKey = "smile_tools_applause_count";
-        const moneyKey = "smile_tools_money_count";
+        const supportApiBase = "http://43.136.181.211:8001";
         const entryModal = document.getElementById("entryModal");
         const qrModal = document.getElementById("qrModal");
         const applauseCount = document.getElementById("applauseCount");
         const moneyCount = document.getElementById("moneyCount");
-        const readCount = (key) => Number(localStorage.getItem(key) || "0");
-        const writeCount = (key, value) => localStorage.setItem(key, String(value));
-        const renderCounts = () => {
-          applauseCount.textContent = readCount(applauseKey);
-          moneyCount.textContent = readCount(moneyKey);
+        const renderCounts = (stats) => {
+          applauseCount.textContent = Number(stats.applause) || 0;
+          moneyCount.textContent = Number(stats.money) || 0;
+        };
+        const apiFetch = async (path, options = {}) => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 1500);
+          try {
+            return await fetch(`${supportApiBase}${path}`, {
+              ...options,
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+        const loadStats = async () => {
+          try {
+            const response = await apiFetch("/api/support/stats", { cache: "no-store" });
+            if (!response.ok) throw new Error("stats request failed");
+            renderCounts(await response.json());
+          } catch {
+            renderCounts({ applause: 0, money: 0 });
+          }
+        };
+        const increase = async (kind) => {
+          try {
+            const response = await apiFetch(`/api/support/${kind}`, { method: "POST" });
+            if (!response.ok) throw new Error("increase request failed");
+            renderCounts(await response.json());
+          } catch {
+            loadStats();
+          }
         };
         const enterHome = () => entryModal.classList.add("is-hidden");
 
         document.getElementById("supportApplauseBtn").addEventListener("click", () => {
-          writeCount(applauseKey, readCount(applauseKey) + 1);
-          renderCounts();
+          increase("applause");
           enterHome();
         });
 
         document.getElementById("supportMoneyBtn").addEventListener("click", () => {
-          writeCount(moneyKey, readCount(moneyKey) + 1);
-          renderCounts();
+          increase("money");
           enterHome();
           qrModal.classList.remove("is-hidden");
         });
@@ -115,7 +140,7 @@
           qrModal.classList.add("is-hidden");
         });
 
-        renderCounts();
+        loadStats();
       })();
     </script>
   </body>
