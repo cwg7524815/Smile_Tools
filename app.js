@@ -17,8 +17,12 @@ const els = {
   rowsInput: $("rowsInput"),
   colsInput: $("colsInput"),
   fpsInput: $("fpsInput"),
-  maxSecondsInput: $("maxSecondsInput"),
+  startTimeInput: $("startTimeInput"),
+  endTimeInput: $("endTimeInput"),
   resetGridBtn: $("resetGridBtn"),
+  cropEnabled: $("cropEnabled"),
+  drawCropBtn: $("drawCropBtn"),
+  clearCropBtn: $("clearCropBtn"),
   extractBtn: $("extractBtn"),
   resultsList: $("resultsList"),
   frameEditor: $("frameEditor"),
@@ -27,6 +31,8 @@ const els = {
   framePlayBtn: $("framePlayBtn"),
   frameOffsetXInput: $("frameOffsetXInput"),
   frameOffsetYInput: $("frameOffsetYInput"),
+  frameScaleInput: $("frameScaleInput"),
+  frameRotationInput: $("frameRotationInput"),
   resetFrameOffsetBtn: $("resetFrameOffsetBtn"),
   frameStrip: $("frameStrip"),
   resultCount: $("resultCount"),
@@ -103,6 +109,17 @@ const state = {
   maskTool: "none",
   maskPainting: false,
   lastMaskPoint: null,
+  crop: {
+    rect: null,
+    drawing: false,
+    drawMode: false,
+    start: null,
+    previousRect: null,
+    editing: false,
+    editMode: null,
+    editStart: null,
+    editRect: null,
+  },
   editor: {
     itemId: null,
     frameIndex: 0,
@@ -120,6 +137,11 @@ const state = {
     dragStart: null,
     origin: { x: 28, y: 28 },
   },
+  mainPreview: {
+    zoom: 1,
+    drawRect: null,
+    sourceRect: null,
+  },
   advancedMatte: false,
 };
 
@@ -135,11 +157,40 @@ let mattePreviewRaf = 0;
 let mattePreviewTimer = 0;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const CROP_MIN_SIZE = 0.002;
 const pad2 = (n) => String(n).padStart(2, "0");
 const trimExtension = (name) => name.replace(/\.[^.]+$/, "");
 const OUTPUT_DIR_DB = "smile_video_frame_tool";
 const OUTPUT_DIR_STORE = "handles";
 const OUTPUT_DIR_KEY = "last_output_dir";
+
+function prepareMatteFields() {
+  const labels = document.querySelectorAll(".settings-panel:first-child .settings-grid > label");
+  for (const label of labels) {
+    if (label.classList.contains("matte-field")) continue;
+    const captionText = Array.from(label.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent.trim())
+      .filter(Boolean)
+      .join(" ");
+    for (const node of Array.from(label.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) node.remove();
+    }
+    const caption = document.createElement("span");
+    caption.className = "field-caption";
+    caption.textContent = captionText;
+    label.prepend(caption);
+    label.classList.add("matte-field");
+
+    const range = label.querySelector(":scope > input[type='range']");
+    const output = label.querySelector(":scope > output");
+    if (!range || !output) continue;
+    const row = document.createElement("div");
+    row.className = "range-row";
+    row.append(range, output);
+    label.append(row);
+  }
+}
 
 function safeFileName(name, fallback = "untitled") {
   const cleaned = String(name || "")
@@ -283,7 +334,7 @@ function getBounds() {
 function drawPreview() {
   const canvas = els.previewCanvas;
   const video = els.sourceVideo;
-  const rect = els.dropZone.getBoundingClientRect();
+  const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const nextW = Math.max(320, Math.round(rect.width * dpr));
   const nextH = Math.max(240, Math.round(rect.height * dpr));
@@ -305,6 +356,7 @@ function drawPreview() {
     ctx.drawImage(video, x, y, w, h);
     drawMaskOverlay();
     drawGrid();
+    drawCropOverlay();
   }
 
   if (!video.videoWidth) {
@@ -359,6 +411,180 @@ function drawGrid() {
   ctx.restore();
 }
 
+function drawCropOverlay() {
+  const d = state.display;
+  const rect = normalizedCropRect();
+  if (!d.w || !rect || (!els.cropEnabled.checked && !state.crop.drawMode && !state.crop.drawing)) return;
+  const x = d.x + rect.x * d.w;
+  const y = d.y + rect.y * d.h;
+  const w = rect.w * d.w;
+  const h = rect.h * d.h;
+  const dpr = window.devicePixelRatio || 1;
+  ctx.save();
+  ctx.fillStyle = "rgba(0, 0, 0, 0.34)";
+  ctx.beginPath();
+  ctx.rect(d.x, d.y, d.w, d.h);
+  ctx.rect(x, y, w, h);
+  ctx.fill("evenodd");
+  ctx.strokeStyle = state.crop.drawMode ? "#f0a321" : "#27b8ff";
+  ctx.lineWidth = Math.max(2, 2 * dpr);
+  ctx.setLineDash([8 * dpr, 5 * dpr]);
+  ctx.strokeRect(x, y, w, h);
+  ctx.setLineDash([]);
+  if (els.cropEnabled.checked && !state.crop.drawMode) {
+    const size = 9 * dpr;
+    ctx.fillStyle = "#f0a321";
+    ctx.strokeStyle = "#071426";
+    for (const handle of cropHandlePoints({ x, y, w, h })) {
+      ctx.beginPath();
+      ctx.rect(handle.x - size / 2, handle.y - size / 2, size, size);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `${13 * dpr}px Segoe UI`;
+  ctx.fillText("裁剪区域", x + 8 * dpr, y + 18 * dpr);
+  ctx.restore();
+}
+
+function normalizedCropRect() {
+  const rect = state.crop.rect;
+  if (!rect) return null;
+  const x1 = clamp(Math.min(rect.x1, rect.x2), 0, 1);
+  const y1 = clamp(Math.min(rect.y1, rect.y2), 0, 1);
+  const x2 = clamp(Math.max(rect.x1, rect.x2), 0, 1);
+  const y2 = clamp(Math.max(rect.y1, rect.y2), 0, 1);
+  if (x2 - x1 < 0.002 || y2 - y1 < 0.002) return null;
+  return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
+}
+
+function cropDisplayRect() {
+  const d = state.display;
+  const rect = normalizedCropRect();
+  if (!d.w || !rect) return null;
+  return {
+    x: d.x + rect.x * d.w,
+    y: d.y + rect.y * d.h,
+    w: rect.w * d.w,
+    h: rect.h * d.h,
+  };
+}
+
+function cropHandlePoints(rect) {
+  const midX = rect.x + rect.w / 2;
+  const midY = rect.y + rect.h / 2;
+  const right = rect.x + rect.w;
+  const bottom = rect.y + rect.h;
+  return [
+    { mode: "nw", x: rect.x, y: rect.y },
+    { mode: "n", x: midX, y: rect.y },
+    { mode: "ne", x: right, y: rect.y },
+    { mode: "e", x: right, y: midY },
+    { mode: "se", x: right, y: bottom },
+    { mode: "s", x: midX, y: bottom },
+    { mode: "sw", x: rect.x, y: bottom },
+    { mode: "w", x: rect.x, y: midY },
+  ];
+}
+
+function cropCursor(mode) {
+  return {
+    n: "ns-resize",
+    s: "ns-resize",
+    e: "ew-resize",
+    w: "ew-resize",
+    ne: "nesw-resize",
+    sw: "nesw-resize",
+    nw: "nwse-resize",
+    se: "nwse-resize",
+    move: "move",
+  }[mode] || "crosshair";
+}
+
+function hitCrop(point) {
+  if (!els.cropEnabled.checked || state.sampleMode || state.maskTool !== "none") return null;
+  const rect = cropDisplayRect();
+  return hitCropDisplayRect(point, rect);
+}
+
+function hitCropDisplayRect(point, rect) {
+  if (!rect) return null;
+  const threshold = 11 * (window.devicePixelRatio || 1);
+  for (const handle of cropHandlePoints(rect)) {
+    if (Math.abs(point.x - handle.x) <= threshold && Math.abs(point.y - handle.y) <= threshold) {
+      return { mode: handle.mode };
+    }
+  }
+  const left = rect.x;
+  const right = rect.x + rect.w;
+  const top = rect.y;
+  const bottom = rect.y + rect.h;
+  const withinX = point.x >= left - threshold && point.x <= right + threshold;
+  const withinY = point.y >= top - threshold && point.y <= bottom + threshold;
+  if (withinX && Math.abs(point.y - top) <= threshold) return { mode: "n" };
+  if (withinX && Math.abs(point.y - bottom) <= threshold) return { mode: "s" };
+  if (withinY && Math.abs(point.x - left) <= threshold) return { mode: "w" };
+  if (withinY && Math.abs(point.x - right) <= threshold) return { mode: "e" };
+  if (point.x >= left && point.x <= right && point.y >= top && point.y <= bottom) return { mode: "move" };
+  return null;
+}
+
+function extractionRange(video) {
+  const duration = video.duration || 0;
+  const start = clamp(Number(els.startTimeInput.value) || 0, 0, duration);
+  const rawEnd = Number(els.endTimeInput.value) || 0;
+  const end = clamp(rawEnd || duration, 0, duration);
+  els.startTimeInput.value = roundTime(start);
+  els.endTimeInput.value = roundTime(end);
+  if (end <= start) return null;
+  return { start, end, duration: end - start };
+}
+
+function roundTime(value) {
+  return (Math.round(value * 1000) / 1000).toFixed(3);
+}
+
+function normalizeRotation(value) {
+  let rotation = Number(value) || 0;
+  while (rotation > 180) rotation -= 360;
+  while (rotation < -180) rotation += 360;
+  return rotation;
+}
+
+function applyCropMask(canvas, cellRect) {
+  const crop = els.cropEnabled.checked ? normalizedCropRect() : null;
+  if (!crop) return canvas;
+  const x1 = Math.max(cellRect.x, crop.x);
+  const y1 = Math.max(cellRect.y, crop.y);
+  const x2 = Math.min(cellRect.x + cellRect.w, crop.x + crop.w);
+  const y2 = Math.min(cellRect.y + cellRect.h, crop.y + crop.h);
+  const out = cloneCanvas(canvas);
+  const outCtx = out.getContext("2d");
+  if (x2 <= x1 || y2 <= y1) {
+    outCtx.clearRect(0, 0, out.width, out.height);
+    return out;
+  }
+  outCtx.save();
+  outCtx.globalCompositeOperation = "destination-in";
+  const rx = ((x1 - cellRect.x) / cellRect.w) * out.width;
+  const ry = ((y1 - cellRect.y) / cellRect.h) * out.height;
+  const rw = ((x2 - x1) / cellRect.w) * out.width;
+  const rh = ((y2 - y1) / cellRect.h) * out.height;
+  outCtx.fillStyle = "#fff";
+  outCtx.fillRect(rx, ry, rw, rh);
+  outCtx.restore();
+  return out;
+}
+
+function processExtractedCell(source, options, cellRect) {
+  const matteOptions = { ...options, center: false };
+  let canvas = processCell(source, matteOptions);
+  canvas = applyCropMask(canvas, cellRect);
+  if (options.center) canvas = centerCanvas(canvas, options);
+  return canvas;
+}
+
 function canvasPoint(event) {
   const rect = els.previewCanvas.getBoundingClientRect();
   const sx = els.previewCanvas.width / rect.width;
@@ -399,6 +625,142 @@ function setLine(axis, index, ratio) {
   scheduleMattePreview();
 }
 
+function setCropDrawMode(active) {
+  state.crop.drawMode = active;
+  state.drag = null;
+  state.maskPainting = false;
+  state.crop.drawing = false;
+  state.crop.editing = false;
+  els.drawCropBtn.classList.toggle("is-active", active);
+  drawPreview();
+  scheduleMattePreview();
+}
+
+function pointToVideoRatio(point) {
+  const d = state.display;
+  if (!d.w || point.x < d.x || point.x > d.x + d.w || point.y < d.y || point.y > d.y + d.h) return null;
+  return {
+    x: clamp((point.x - d.x) / d.w, 0, 1),
+    y: clamp((point.y - d.y) / d.h, 0, 1),
+  };
+}
+
+function startCropDraw(point) {
+  const ratio = pointToVideoRatio(point);
+  return startCropDrawAtRatio(ratio);
+}
+
+function startCropDrawAtRatio(ratio) {
+  if (!ratio) return false;
+  state.crop.drawing = true;
+  state.crop.start = ratio;
+  state.crop.previousRect = state.crop.rect ? { ...state.crop.rect } : null;
+  state.crop.rect = { x1: ratio.x, y1: ratio.y, x2: ratio.x, y2: ratio.y };
+  els.cropEnabled.checked = true;
+  drawPreview();
+  return true;
+}
+
+function updateCropDraw(point) {
+  const ratio = pointToVideoRatio(point);
+  updateCropDrawAtRatio(ratio);
+}
+
+function updateCropDrawAtRatio(ratio) {
+  if (!state.crop.drawing || !state.crop.start) return;
+  if (!ratio) return;
+  state.crop.rect = {
+    x1: state.crop.start.x,
+    y1: state.crop.start.y,
+    x2: ratio.x,
+    y2: ratio.y,
+  };
+  drawPreview();
+  scheduleMattePreview(16);
+}
+
+function finishCropDraw() {
+  if (!state.crop.drawing) return;
+  state.crop.drawing = false;
+  state.crop.start = null;
+  if (!normalizedCropRect()) state.crop.rect = state.crop.previousRect;
+  state.crop.previousRect = null;
+  state.crop.drawMode = false;
+  els.drawCropBtn.classList.remove("is-active");
+  drawPreview();
+  scheduleMattePreview();
+}
+
+function startCropEdit(point, hit) {
+  const ratio = pointToVideoRatio(point);
+  return startCropEditAtRatio(ratio, hit);
+}
+
+function startCropEditAtRatio(ratio, hit) {
+  const rect = normalizedCropRect();
+  if (!ratio || !rect) return false;
+  state.crop.editing = true;
+  state.crop.editMode = hit.mode;
+  state.crop.editStart = ratio;
+  state.crop.editRect = rect;
+  state.crop.drawMode = false;
+  els.drawCropBtn.classList.remove("is-active");
+  return true;
+}
+
+function updateCropEdit(point) {
+  const ratio = pointToVideoRatio(point);
+  updateCropEditAtRatio(ratio);
+}
+
+function updateCropEditAtRatio(ratio) {
+  if (!state.crop.editing || !state.crop.editStart || !state.crop.editRect) return;
+  if (!ratio) return;
+  const dx = ratio.x - state.crop.editStart.x;
+  const dy = ratio.y - state.crop.editStart.y;
+  const base = state.crop.editRect;
+  let x1 = base.x;
+  let y1 = base.y;
+  let x2 = base.x + base.w;
+  let y2 = base.y + base.h;
+  const mode = state.crop.editMode || "";
+
+  if (mode === "move") {
+    const x = clamp(base.x + dx, 0, 1 - base.w);
+    const y = clamp(base.y + dy, 0, 1 - base.h);
+    state.crop.rect = { x1: x, y1: y, x2: x + base.w, y2: y + base.h };
+  } else {
+    if (mode.includes("w")) x1 = clamp(x1 + dx, 0, x2 - CROP_MIN_SIZE);
+    if (mode.includes("e")) x2 = clamp(x2 + dx, x1 + CROP_MIN_SIZE, 1);
+    if (mode.includes("n")) y1 = clamp(y1 + dy, 0, y2 - CROP_MIN_SIZE);
+    if (mode.includes("s")) y2 = clamp(y2 + dy, y1 + CROP_MIN_SIZE, 1);
+    state.crop.rect = { x1, y1, x2, y2 };
+  }
+
+  drawPreview();
+  scheduleMattePreview(80);
+}
+
+function finishCropEdit() {
+  if (!state.crop.editing) return;
+  state.crop.editing = false;
+  state.crop.editMode = null;
+  state.crop.editStart = null;
+  state.crop.editRect = null;
+  drawPreview();
+  scheduleMattePreview();
+}
+
+function clearCrop() {
+  state.crop.rect = null;
+  state.crop.drawing = false;
+  state.crop.start = null;
+  state.crop.previousRect = null;
+  finishCropEdit();
+  setCropDrawMode(false);
+  scheduleMattePreview();
+}
+
 function setVideoFile(file) {
   if (!file || !file.type.startsWith("video/")) return;
   if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
@@ -409,6 +771,16 @@ function setVideoFile(file) {
   els.emptyState.style.display = "none";
   state.results = [];
   state.selected.clear();
+  state.crop.rect = null;
+  state.crop.drawing = false;
+  state.crop.start = null;
+  state.crop.previousRect = null;
+  state.crop.editing = false;
+  state.crop.editMode = null;
+  state.crop.editStart = null;
+  state.crop.editRect = null;
+  setCropDrawMode(false);
+  els.cropEnabled.checked = false;
   closeFrameEditor();
   clearMasks();
   renderResults();
@@ -851,24 +1223,24 @@ function componentGap(a, b) {
 function drawMattePreview() {
   const video = els.sourceVideo;
   const canvas = els.mattePreviewCanvas;
-  resizeCanvasToCss(canvas, 220, 160);
+  resizeCanvasToCss(canvas, 640, 360);
+  applyMainPreviewBackground();
 
   if (!video.videoWidth || !video.videoHeight) {
-    const dpr = window.devicePixelRatio || 1;
+    state.mainPreview.drawRect = null;
+    state.mainPreview.sourceRect = null;
     mattePreviewCtx.clearRect(0, 0, canvas.width, canvas.height);
     mattePreviewCtx.fillStyle = "#10203a";
     mattePreviewCtx.fillRect(0, 0, canvas.width, canvas.height);
-    mattePreviewCtx.fillStyle = "#8ea8c7";
-    mattePreviewCtx.font = `${13 * dpr}px Segoe UI`;
-    mattePreviewCtx.textAlign = "center";
-    mattePreviewCtx.fillText("选择视频后预览抠背景效果", canvas.width / 2, canvas.height / 2);
     els.previewInfo.textContent = "等待视频";
     drawLargePreview();
     return;
   }
 
-  const preview = currentPreviewCanvas(els.previewModal.classList.contains("is-hidden") ? 520 : 900);
-  drawCanvasContain(mattePreviewCtx, canvas, preview);
+  const preview = currentPreviewCanvas(1400);
+  state.mainPreview.drawRect = drawCanvasContain(mattePreviewCtx, canvas, preview, state.mainPreview.zoom);
+  state.mainPreview.sourceRect = preview.sourceRect;
+  drawMainCropOverlay();
   els.previewInfo.textContent = preview.info;
   drawLargePreview(preview);
 }
@@ -882,6 +1254,12 @@ function currentPreviewCanvas(maxEdge = Infinity) {
   const sy = Math.round(ys[row] * video.videoHeight);
   const sw = Math.max(1, Math.round((xs[col + 1] - xs[col]) * video.videoWidth));
   const sh = Math.max(1, Math.round((ys[row + 1] - ys[row]) * video.videoHeight));
+  const cellRect = {
+    x: xs[col],
+    y: ys[row],
+    w: xs[col + 1] - xs[col],
+    h: ys[row + 1] - ys[row],
+  };
   const previewScale = Math.min(1, maxEdge / Math.max(sw, sh));
   const pw = Math.max(1, Math.round(sw * previewScale));
   const ph = Math.max(1, Math.round(sh * previewScale));
@@ -893,7 +1271,7 @@ function currentPreviewCanvas(maxEdge = Infinity) {
   sourceCtx.drawImage(video, sx, sy, sw, sh, 0, 0, pw, ph);
   const previewOptions = settings();
   previewOptions.center = false;
-  const processed = processCell(
+  const processed = processExtractedCell(
     {
       ctx: sourceCtx,
       width: pw,
@@ -902,8 +1280,10 @@ function currentPreviewCanvas(maxEdge = Infinity) {
       protectMask: maskSlice("protect", sx, sy, sw, sh, pw, ph),
     },
     previewOptions,
+    cellRect,
   );
   processed.info = `第 ${row + 1} 行 / 第 ${col + 1} 列`;
+  processed.sourceRect = { sx, sy, sw, sh };
   return processed;
 }
 
@@ -914,13 +1294,78 @@ function resizeCanvasToCss(canvas, minWidth, minHeight) {
   canvas.height = Math.max(minHeight, Math.round((css.height || minHeight) * dpr));
 }
 
-function drawCanvasContain(targetCtx, canvas, source) {
+function drawCanvasContain(targetCtx, canvas, source, zoom = 1) {
   targetCtx.clearRect(0, 0, canvas.width, canvas.height);
-  const scale = Math.min(canvas.width / source.width, canvas.height / source.height);
+  const scale = Math.min(canvas.width / source.width, canvas.height / source.height) * zoom;
   const dw = source.width * scale;
   const dh = source.height * scale;
+  const x = (canvas.width - dw) / 2;
+  const y = (canvas.height - dh) / 2;
   targetCtx.imageSmoothingEnabled = false;
-  targetCtx.drawImage(source, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+  targetCtx.drawImage(source, x, y, dw, dh);
+  return { x, y, w: dw, h: dh };
+}
+
+function applyMainPreviewBackground() {
+  const canvas = els.mattePreviewCanvas;
+  if (state.floatingPreview.bgColor) {
+    canvas.classList.add("has-solid-bg");
+    canvas.style.backgroundColor = state.floatingPreview.bgColor;
+    return;
+  }
+  canvas.classList.remove("has-solid-bg");
+  canvas.style.backgroundColor = "";
+}
+
+function mainCropDisplayRect() {
+  const crop = normalizedCropRect();
+  const drawRect = state.mainPreview.drawRect;
+  const sourceRect = state.mainPreview.sourceRect;
+  const video = els.sourceVideo;
+  if (!crop || !drawRect || !sourceRect || !video.videoWidth || !video.videoHeight) return null;
+  const cropX = crop.x * video.videoWidth;
+  const cropY = crop.y * video.videoHeight;
+  const cropW = crop.w * video.videoWidth;
+  const cropH = crop.h * video.videoHeight;
+  return {
+    x: drawRect.x + ((cropX - sourceRect.sx) / sourceRect.sw) * drawRect.w,
+    y: drawRect.y + ((cropY - sourceRect.sy) / sourceRect.sh) * drawRect.h,
+    w: (cropW / sourceRect.sw) * drawRect.w,
+    h: (cropH / sourceRect.sh) * drawRect.h,
+  };
+}
+
+function drawMainCropOverlay() {
+  const drawRect = state.mainPreview.drawRect;
+  const cropRect = mainCropDisplayRect();
+  if (!drawRect || !cropRect || (!els.cropEnabled.checked && !state.crop.drawMode && !state.crop.drawing)) return;
+  const dpr = window.devicePixelRatio || 1;
+  mattePreviewCtx.save();
+  mattePreviewCtx.beginPath();
+  mattePreviewCtx.rect(drawRect.x, drawRect.y, drawRect.w, drawRect.h);
+  mattePreviewCtx.rect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  mattePreviewCtx.fillStyle = "rgba(0, 0, 0, 0.34)";
+  mattePreviewCtx.fill("evenodd");
+  mattePreviewCtx.strokeStyle = state.crop.drawMode ? "#f0a321" : "#27b8ff";
+  mattePreviewCtx.lineWidth = Math.max(2, 2 * dpr);
+  mattePreviewCtx.setLineDash([8 * dpr, 5 * dpr]);
+  mattePreviewCtx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
+  mattePreviewCtx.setLineDash([]);
+  if (els.cropEnabled.checked && !state.crop.drawMode) {
+    const size = 9 * dpr;
+    mattePreviewCtx.fillStyle = "#f0a321";
+    mattePreviewCtx.strokeStyle = "#071426";
+    for (const handle of cropHandlePoints(cropRect)) {
+      mattePreviewCtx.beginPath();
+      mattePreviewCtx.rect(handle.x - size / 2, handle.y - size / 2, size, size);
+      mattePreviewCtx.fill();
+      mattePreviewCtx.stroke();
+    }
+  }
+  mattePreviewCtx.fillStyle = "#ffffff";
+  mattePreviewCtx.font = `${13 * dpr}px Segoe UI`;
+  mattePreviewCtx.fillText("裁剪区域", cropRect.x + 8 * dpr, cropRect.y + 18 * dpr);
+  mattePreviewCtx.restore();
 }
 
 function drawLargePreview(preview = null) {
@@ -1002,9 +1447,12 @@ async function extractFrames() {
     els.workCanvas.width = video.videoWidth;
     els.workCanvas.height = video.videoHeight;
     const fps = clamp(Number(els.fpsInput.value) || 1, 1, 30);
-    const maxSeconds = Number(els.maxSecondsInput.value) || 0;
-    const duration = maxSeconds > 0 ? Math.min(video.duration, maxSeconds) : video.duration;
-    const totalFrames = Math.max(1, Math.floor(duration * fps) + 1);
+    const range = extractionRange(video);
+    if (!range) {
+      alert("结束秒必须大于起始秒。结束秒填 0 表示到视频结尾。");
+      return;
+    }
+    const totalFrames = Math.max(1, Math.floor(range.duration * fps) + 1);
     const { xs, ys } = getBounds();
     const options = settings();
     const baseName = safeFileName(els.projectNameInput.value, "SmileVideoFrames");
@@ -1019,7 +1467,7 @@ async function extractFrames() {
     }));
 
     for (let frame = 0; frame < totalFrames; frame++) {
-      const time = Math.min(duration, frame / fps);
+      const time = Math.min(range.end, range.start + frame / fps);
       await seekTo(time);
       workCtx.clearRect(0, 0, els.workCanvas.width, els.workCanvas.height);
       workCtx.drawImage(video, 0, 0);
@@ -1030,12 +1478,18 @@ async function extractFrames() {
           const sy = Math.round(ys[row] * video.videoHeight);
           const sw = Math.max(1, Math.round((xs[col + 1] - xs[col]) * video.videoWidth));
           const sh = Math.max(1, Math.round((ys[row + 1] - ys[row]) * video.videoHeight));
+          const cellRect = {
+            x: xs[col],
+            y: ys[row],
+            w: xs[col + 1] - xs[col],
+            h: ys[row + 1] - ys[row],
+          };
           const sourceCanvas = document.createElement("canvas");
           sourceCanvas.width = sw;
           sourceCanvas.height = sh;
           const sourceCtx = sourceCanvas.getContext("2d", { willReadFrequently: true });
           sourceCtx.drawImage(els.workCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
-          const processed = processCell(
+          const processed = processExtractedCell(
             {
               ctx: sourceCtx,
               width: sw,
@@ -1044,6 +1498,7 @@ async function extractFrames() {
               protectMask: maskSlice("protect", sx, sy, sw, sh),
             },
             options,
+            cellRect,
           );
           buckets[row * state.cols + col].frames.push(processed);
         }
@@ -1053,6 +1508,7 @@ async function extractFrames() {
     state.results = buckets;
     for (const item of state.results) {
       item.offsets = item.frames.map(() => ({ x: 0, y: 0 }));
+      item.transforms = item.frames.map(() => defaultFrameTransform());
       item.kept = item.frames.map(() => true);
     }
     state.selected = new Set(buckets.map((item) => item.id));
@@ -1142,15 +1598,49 @@ function resultFileName(item) {
   return safeFileName(item.name, `${safeFileName(els.projectNameInput.value, "item")}_${pad2(item.id)}`);
 }
 
+function defaultFrameTransform(offset = { x: 0, y: 0 }) {
+  return {
+    x: Math.round(offset.x || 0),
+    y: Math.round(offset.y || 0),
+    scale: 1,
+    rotation: 0,
+  };
+}
+
+function ensureFrameTransforms(item) {
+  if (!item.transforms || item.transforms.length !== item.frames.length) {
+    item.transforms = item.frames.map((_, index) => defaultFrameTransform(item.offsets?.[index]));
+  }
+  item.transforms = item.transforms.map((transform, index) => ({
+    ...defaultFrameTransform(item.offsets?.[index]),
+    ...transform,
+    x: Math.round(Number(transform?.x ?? item.offsets?.[index]?.x) || 0),
+    y: Math.round(Number(transform?.y ?? item.offsets?.[index]?.y) || 0),
+    scale: clamp(Number(transform?.scale) || 1, 0.1, 4),
+    rotation: normalizeRotation(transform?.rotation),
+  }));
+  item.offsets = item.transforms.map((transform) => ({ x: transform.x, y: transform.y }));
+  return item.transforms;
+}
+
+function frameTransform(item, frameIndex) {
+  return ensureFrameTransforms(item)[frameIndex] || defaultFrameTransform();
+}
+
 function adjustedCanvas(item, frameIndex) {
   const source = item.frames[frameIndex];
-  const offset = item.offsets?.[frameIndex] || { x: 0, y: 0 };
+  const transform = frameTransform(item, frameIndex);
   const canvas = document.createElement("canvas");
   canvas.width = source.width;
   canvas.height = source.height;
   const canvasCtx = canvas.getContext("2d");
   canvasCtx.imageSmoothingEnabled = false;
-  canvasCtx.drawImage(source, offset.x, offset.y);
+  canvasCtx.save();
+  canvasCtx.translate(canvas.width / 2 + transform.x, canvas.height / 2 + transform.y);
+  canvasCtx.rotate((transform.rotation * Math.PI) / 180);
+  canvasCtx.scale(transform.scale, transform.scale);
+  canvasCtx.drawImage(source, -source.width / 2, -source.height / 2);
+  canvasCtx.restore();
   return canvas;
 }
 
@@ -1185,6 +1675,7 @@ function openFrameEditor(itemId) {
   if (!item.offsets || item.offsets.length !== item.frames.length) {
     item.offsets = item.frames.map(() => ({ x: 0, y: 0 }));
   }
+  ensureFrameTransforms(item);
   state.editor.itemId = itemId;
   state.editor.frameIndex = clamp(state.editor.frameIndex, 0, item.frames.length - 1);
   els.frameEditor.classList.remove("is-empty");
@@ -1208,9 +1699,11 @@ function setEditorFrame(index, stopPlayback = true) {
 function syncFrameOffsetInputs() {
   const item = editorItem();
   if (!item) return;
-  const offset = item.offsets[state.editor.frameIndex] || { x: 0, y: 0 };
-  els.frameOffsetXInput.value = Math.round(offset.x);
-  els.frameOffsetYInput.value = Math.round(offset.y);
+  const transform = frameTransform(item, state.editor.frameIndex);
+  els.frameOffsetXInput.value = Math.round(transform.x);
+  els.frameOffsetYInput.value = Math.round(transform.y);
+  els.frameScaleInput.value = Math.round(transform.scale * 100);
+  els.frameRotationInput.value = Math.round(transform.rotation);
   els.frameEditorInfo.textContent = `人物 ${item.id} / 第 ${state.editor.frameIndex + 1} 帧`;
 }
 
@@ -1223,18 +1716,32 @@ function setFrameKept(index, kept) {
   syncFrameOffsetInputs();
 }
 
-function setCurrentFrameOffset(x, y) {
+function setCurrentFrameTransform(next) {
   const item = editorItem();
   if (!item) return;
-  item.offsets[state.editor.frameIndex] = { x: Math.round(x), y: Math.round(y) };
+  const current = frameTransform(item, state.editor.frameIndex);
+  item.transforms[state.editor.frameIndex] = {
+    x: Math.round(Number(next.x ?? current.x) || 0),
+    y: Math.round(Number(next.y ?? current.y) || 0),
+    scale: clamp(Number(next.scale ?? current.scale) || 1, 0.1, 4),
+    rotation: normalizeRotation(next.rotation ?? current.rotation),
+  };
+  item.offsets[state.editor.frameIndex] = {
+    x: item.transforms[state.editor.frameIndex].x,
+    y: item.transforms[state.editor.frameIndex].y,
+  };
   syncFrameOffsetInputs();
   drawFrameEditor();
   updateResultThumb(item);
   updateActiveFrameThumb();
 }
 
+function setCurrentFrameOffset(x, y) {
+  setCurrentFrameTransform({ x, y });
+}
+
 function resetCurrentFrameOffset() {
-  setCurrentFrameOffset(0, 0);
+  setCurrentFrameTransform(defaultFrameTransform());
 }
 
 function drawFrameEditor() {
@@ -1276,9 +1783,9 @@ function renderFrameStrip() {
     button.addEventListener("click", () => setEditorFrame(index, true));
     const img = document.createElement("img");
     img.src = adjustedCanvas(item, index).toDataURL("image/png");
-    const offset = item.offsets[index] || { x: 0, y: 0 };
+    const transform = frameTransform(item, index);
     const text = document.createElement("div");
-    text.innerHTML = `<strong>第 ${index + 1} 帧</strong><span>${kept ? "保留" : "跳过"} · x ${Math.round(offset.x)} / y ${Math.round(offset.y)}</span>`;
+    text.innerHTML = `<strong>第 ${index + 1} 帧</strong><span>${frameTransformSummary(transform, kept)}</span>`;
     const keep = document.createElement("input");
     keep.type = "checkbox";
     keep.className = "frame-keep-checkbox";
@@ -1298,11 +1805,15 @@ function updateActiveFrameThumb() {
   if (!button) return;
   const img = button.querySelector("img");
   const span = button.querySelector("span");
-  const offset = item.offsets[state.editor.frameIndex] || { x: 0, y: 0 };
+  const transform = frameTransform(item, state.editor.frameIndex);
   const kept = !item.kept || item.kept[state.editor.frameIndex] !== false;
   img.src = adjustedCanvas(item, state.editor.frameIndex).toDataURL("image/png");
-  span.textContent = `${kept ? "保留" : "跳过"} · x ${Math.round(offset.x)} / y ${Math.round(offset.y)}`;
+  span.textContent = frameTransformSummary(transform, kept);
   button.classList.toggle("is-skipped", !kept);
+}
+
+function frameTransformSummary(transform, kept) {
+  return `${kept ? "保留" : "跳过"} · x ${Math.round(transform.x)} / y ${Math.round(transform.y)} · ${Math.round(transform.scale * 100)}% · ${Math.round(transform.rotation)}°`;
 }
 
 function updateResultThumb(item) {
@@ -1751,23 +2262,76 @@ function sampleVideoColor(point) {
   return rgbToHex(px[0], px[1], px[2]);
 }
 
-function sampleBackground(point) {
-  const color = sampleVideoColor(point);
+function mainPreviewPoint(event) {
+  const rect = els.mattePreviewCanvas.getBoundingClientRect();
+  const sx = els.mattePreviewCanvas.width / rect.width;
+  const sy = els.mattePreviewCanvas.height / rect.height;
+  return {
+    x: (event.clientX - rect.left) * sx,
+    y: (event.clientY - rect.top) * sy,
+  };
+}
+
+function mainPreviewPointToVideoRatio(point) {
+  const drawRect = state.mainPreview.drawRect;
+  const sourceRect = state.mainPreview.sourceRect;
+  const video = els.sourceVideo;
+  if (!drawRect || !sourceRect || !video.videoWidth || !video.videoHeight) return null;
+  if (point.x < drawRect.x || point.x > drawRect.x + drawRect.w || point.y < drawRect.y || point.y > drawRect.y + drawRect.h) {
+    return null;
+  }
+  const sourceX = sourceRect.sx + ((point.x - drawRect.x) / drawRect.w) * sourceRect.sw;
+  const sourceY = sourceRect.sy + ((point.y - drawRect.y) / drawRect.h) * sourceRect.sh;
+  return {
+    x: clamp(sourceX / video.videoWidth, 0, 1),
+    y: clamp(sourceY / video.videoHeight, 0, 1),
+  };
+}
+
+function hitMainCrop(point) {
+  if (!els.cropEnabled.checked || state.sampleMode || state.maskTool !== "none") return null;
+  return hitCropDisplayRect(point, mainCropDisplayRect());
+}
+
+function sampleMainPreviewColor(point) {
+  const drawRect = state.mainPreview.drawRect;
+  const sourceRect = state.mainPreview.sourceRect;
+  if (!drawRect || !sourceRect || !els.sourceVideo.videoWidth) return null;
+  if (point.x < drawRect.x || point.x > drawRect.x + drawRect.w || point.y < drawRect.y || point.y > drawRect.y + drawRect.h) {
+    return null;
+  }
+  const ratioX = (point.x - drawRect.x) / drawRect.w;
+  const ratioY = (point.y - drawRect.y) / drawRect.h;
+  const videoX = Math.round(sourceRect.sx + ratioX * sourceRect.sw);
+  const videoY = Math.round(sourceRect.sy + ratioY * sourceRect.sh);
+  els.workCanvas.width = els.sourceVideo.videoWidth;
+  els.workCanvas.height = els.sourceVideo.videoHeight;
+  workCtx.drawImage(els.sourceVideo, 0, 0);
+  const px = workCtx.getImageData(clamp(videoX, 0, els.workCanvas.width - 1), clamp(videoY, 0, els.workCanvas.height - 1), 1, 1).data;
+  return rgbToHex(px[0], px[1], px[2]);
+}
+
+function applySampledColor(color) {
   if (!color) return;
-  els.bgColorInput.value = color;
+  if (state.sampleMode === "desaturate") {
+    els.spillColorInput.value = color;
+    els.spillTargetInput.value = "sample";
+  } else {
+    els.bgColorInput.value = color;
+  }
   state.sampleMode = false;
   updateModeFields();
   scheduleMattePreview();
 }
 
+function sampleBackground(point) {
+  const color = sampleVideoColor(point);
+  applySampledColor(color);
+}
+
 function sampleDesaturateColor(point) {
   const color = sampleVideoColor(point);
-  if (!color) return;
-  els.spillColorInput.value = color;
-  els.spillTargetInput.value = "sample";
-  state.sampleMode = false;
-  updateModeFields();
-  scheduleMattePreview();
+  applySampledColor(color);
 }
 
 function pointToVideo(point) {
@@ -1837,6 +2401,8 @@ els.dropZone.addEventListener("drop", (event) => {
 els.sourceVideo.addEventListener("loadedmetadata", () => {
   resizeMasks(els.sourceVideo.videoWidth, els.sourceVideo.videoHeight);
   els.seekRange.value = 0;
+  els.startTimeInput.value = roundTime(0);
+  els.endTimeInput.value = roundTime(els.sourceVideo.duration || 0);
   initGrid();
   syncTime();
 });
@@ -1857,6 +2423,19 @@ els.seekRange.addEventListener("input", () => {
 for (const input of [els.rowsInput, els.colsInput]) input.addEventListener("change", initGrid);
 for (const input of [els.previewRowInput, els.previewColInput]) input.addEventListener("change", scheduleMattePreview);
 els.resetGridBtn.addEventListener("click", initGrid);
+els.drawCropBtn.addEventListener("click", () => setCropDrawMode(!state.crop.drawMode));
+els.clearCropBtn.addEventListener("click", clearCrop);
+els.cropEnabled.addEventListener("change", () => {
+  drawPreview();
+  scheduleMattePreview();
+});
+for (const input of [els.startTimeInput, els.endTimeInput]) {
+  input.addEventListener("change", () => {
+    if (els.sourceVideo.duration) extractionRange(els.sourceVideo);
+    drawPreview();
+    scheduleMattePreview();
+  });
+}
 els.clearMasksBtn.addEventListener("click", clearMasks);
 els.extractBtn.addEventListener("click", extractFrames);
 els.exportFolderBtn.addEventListener("click", exportToFolder);
@@ -1866,6 +2445,7 @@ els.advancedMatteBtn.addEventListener("click", () => {
   updateOutputs();
 });
 els.sampleSpillBtn.addEventListener("click", () => {
+  setCropDrawMode(false);
   state.sampleMode = "desaturate";
   updateModeFields();
 });
@@ -1876,11 +2456,65 @@ els.zoomInPreviewBtn.addEventListener("click", () => setFloatingPreviewZoom(stat
 els.zoomResetPreviewBtn.addEventListener("click", () => setFloatingPreviewZoom(1));
 els.largePreviewBgInput.addEventListener("input", () => {
   state.floatingPreview.bgColor = els.largePreviewBgInput.value;
+  applyMainPreviewBackground();
   applyLargePreviewBackground();
 });
 els.previewCheckerBtn.addEventListener("click", () => {
   state.floatingPreview.bgColor = "";
+  applyMainPreviewBackground();
   applyLargePreviewBackground();
+});
+els.mattePreviewCanvas.addEventListener("pointerdown", (event) => {
+  const point = mainPreviewPoint(event);
+  const cropHit = hitMainCrop(point);
+  if (cropHit && !state.crop.drawMode) {
+    if (startCropEditAtRatio(mainPreviewPointToVideoRatio(point), cropHit)) {
+      els.mattePreviewCanvas.setPointerCapture(event.pointerId);
+    }
+    return;
+  }
+  if (state.crop.drawMode) {
+    if (startCropDrawAtRatio(mainPreviewPointToVideoRatio(point))) {
+      els.mattePreviewCanvas.setPointerCapture(event.pointerId);
+      scheduleMattePreview();
+    }
+  }
+});
+els.mattePreviewCanvas.addEventListener("pointermove", (event) => {
+  const point = mainPreviewPoint(event);
+  if (state.crop.editing) {
+    updateCropEditAtRatio(mainPreviewPointToVideoRatio(point));
+    return;
+  }
+  if (state.crop.drawing) {
+    updateCropDrawAtRatio(mainPreviewPointToVideoRatio(point));
+    return;
+  }
+  const cropHit = hitMainCrop(point);
+  els.mattePreviewCanvas.style.cursor = cropHit
+    ? cropCursor(cropHit.mode)
+    : state.crop.drawMode
+      ? "crosshair"
+      : state.sampleMode
+        ? "copy"
+        : "zoom-in";
+});
+els.mattePreviewCanvas.addEventListener("pointerup", () => {
+  finishCropDraw();
+  finishCropEdit();
+});
+els.mattePreviewCanvas.addEventListener("pointercancel", () => {
+  finishCropDraw();
+  finishCropEdit();
+});
+els.mattePreviewCanvas.addEventListener("click", (event) => {
+  if (!state.sampleMode) return;
+  applySampledColor(sampleMainPreviewColor(mainPreviewPoint(event)));
+});
+els.mattePreviewCanvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  state.mainPreview.zoom = clamp(state.mainPreview.zoom + (event.deltaY < 0 ? 0.1 : -0.1), 0.25, 6);
+  drawMattePreview();
 });
 els.largePreviewViewport.addEventListener("wheel", (event) => {
   event.preventDefault();
@@ -1911,11 +2545,16 @@ window.addEventListener("keydown", (event) => {
 });
 els.framePlayBtn.addEventListener("click", toggleFramePlayback);
 els.resetFrameOffsetBtn.addEventListener("click", resetCurrentFrameOffset);
-for (const input of [els.frameOffsetXInput, els.frameOffsetYInput]) {
+for (const input of [els.frameOffsetXInput, els.frameOffsetYInput, els.frameScaleInput, els.frameRotationInput]) {
   input.addEventListener("change", () => {
     const item = editorItem();
     if (!item) return;
-    setCurrentFrameOffset(Number(els.frameOffsetXInput.value) || 0, Number(els.frameOffsetYInput.value) || 0);
+    setCurrentFrameTransform({
+      x: Number(els.frameOffsetXInput.value) || 0,
+      y: Number(els.frameOffsetYInput.value) || 0,
+      scale: (Number(els.frameScaleInput.value) || 100) / 100,
+      rotation: Number(els.frameRotationInput.value) || 0,
+    });
   });
 }
 els.selectAllBtn.addEventListener("click", () => {
@@ -1925,6 +2564,7 @@ els.selectAllBtn.addEventListener("click", () => {
 });
 for (const input of document.querySelectorAll('input[name="maskTool"]')) {
   input.addEventListener("change", () => {
+    setCropDrawMode(false);
     state.maskTool = input.value;
     state.drag = null;
     state.maskPainting = false;
@@ -1934,6 +2574,15 @@ for (const input of document.querySelectorAll('input[name="maskTool"]')) {
 
 els.previewCanvas.addEventListener("pointerdown", (event) => {
   const point = canvasPoint(event);
+  const cropHit = hitCrop(point);
+  if (cropHit && !state.crop.drawMode) {
+    if (startCropEdit(point, cropHit)) els.previewCanvas.setPointerCapture(event.pointerId);
+    return;
+  }
+  if (state.crop.drawMode) {
+    if (startCropDraw(point)) els.previewCanvas.setPointerCapture(event.pointerId);
+    return;
+  }
   if (state.sampleMode) {
     if (state.sampleMode === "desaturate") sampleDesaturateColor(point);
     else sampleBackground(point);
@@ -1954,6 +2603,14 @@ els.previewCanvas.addEventListener("pointerdown", (event) => {
 });
 els.previewCanvas.addEventListener("pointermove", (event) => {
   const point = canvasPoint(event);
+  if (state.crop.editing) {
+    updateCropEdit(point);
+    return;
+  }
+  if (state.crop.drawing) {
+    updateCropDraw(point);
+    return;
+  }
   if (state.maskPainting) {
     paintMask(point);
     return;
@@ -1962,15 +2619,20 @@ els.previewCanvas.addEventListener("pointermove", (event) => {
     setLine(state.drag.axis, state.drag.index, pointerToRatio(point, state.drag.axis));
     return;
   }
+  const cropHit = hitCrop(point);
   els.previewCanvas.style.cursor =
-    state.maskTool !== "none" ? "cell" : hitTest(point) ? "grab" : state.sampleMode ? "copy" : "crosshair";
+    cropHit ? cropCursor(cropHit.mode) : state.crop.drawMode ? "crosshair" : state.maskTool !== "none" ? "cell" : hitTest(point) ? "grab" : state.sampleMode ? "copy" : "crosshair";
 });
 els.previewCanvas.addEventListener("pointerup", () => {
+  finishCropDraw();
+  finishCropEdit();
   state.drag = null;
   state.maskPainting = false;
   state.lastMaskPoint = null;
 });
 els.previewCanvas.addEventListener("pointercancel", () => {
+  finishCropDraw();
+  finishCropEdit();
   state.drag = null;
   state.maskPainting = false;
   state.lastMaskPoint = null;
@@ -1980,10 +2642,10 @@ els.frameEditorCanvas.addEventListener("pointerdown", (event) => {
   const item = editorItem();
   if (!item) return;
   stopFramePlayback();
-  const offset = item.offsets[state.editor.frameIndex] || { x: 0, y: 0 };
+  const transform = frameTransform(item, state.editor.frameIndex);
   state.editor.dragging = true;
   state.editor.dragStart = editorPoint(event);
-  state.editor.dragBase = { x: offset.x, y: offset.y };
+  state.editor.dragBase = { x: transform.x, y: transform.y };
   els.frameEditorCanvas.setPointerCapture(event.pointerId);
 });
 
@@ -2043,6 +2705,7 @@ window.addEventListener("resize", () => {
   applyFloatingPreviewPosition();
   drawLargePreview();
 });
+prepareMatteFields();
 updateOutputs();
 initGrid();
 renderResults();

@@ -13,7 +13,7 @@
           <img class="brand-avatar" src="./头像.png" alt="">
           <div>
             <p class="eyebrow">微笑独立游戏开发</p>
-            <h1>视频帧处理工具 <span class="version-badge">V1.2.5版本</span></h1>
+            <h1>视频帧处理工具 <span class="version-badge">V1.3.0版本</span></h1>
           </div>
         </div>
         <div class="top-actions">
@@ -27,7 +27,20 @@
       <section class="workspace">
         <section class="stage-panel">
           <div id="dropZone" class="drop-zone">
-            <canvas id="previewCanvas" width="960" height="540"></canvas>
+            <div class="main-preview-toolbar">
+              <div>
+                <strong>抠背景预览</strong>
+                <span id="previewInfo">当前帧</span>
+              </div>
+              <div class="preview-zoom-controls">
+                <label class="preview-bg-control">背景
+                  <input id="largePreviewBgInput" type="color" value="#111111">
+                </label>
+                <button id="previewCheckerBtn" class="ghost" type="button">棋盘格</button>
+                <button id="floatPreviewBtn" class="float-preview-btn" type="button">浮窗预览</button>
+              </div>
+            </div>
+            <canvas id="mattePreviewCanvas" width="960" height="540"></canvas>
             <div id="emptyState" class="empty-state">
               <strong>拖入或选择本地视频</strong>
               <span>视频只在浏览器中读取，不会上传到服务器。</span>
@@ -50,21 +63,34 @@
             <label>帧率
               <input id="fpsInput" type="number" min="1" max="30" value="5">
             </label>
-            <label>最大秒数
-              <input id="maxSecondsInput" type="number" min="0" step="0.5" value="0">
+            <label>起始秒
+              <input id="startTimeInput" type="number" min="0" step="0.001" value="0.000">
+            </label>
+            <label>结束秒
+              <input id="endTimeInput" type="number" min="0" step="0.001" value="0.000">
             </label>
             <button id="resetGridBtn" class="ghost" type="button">重置网格</button>
+          </div>
+          <div class="frame-process-grid">
+            <label class="switch crop-switch">
+              <input id="cropEnabled" type="checkbox">
+              <span>启用裁剪</span>
+            </label>
+            <button id="drawCropBtn" class="ghost" type="button">绘制裁剪区域</button>
+            <button id="clearCropBtn" class="ghost" type="button">清除裁剪</button>
           </div>
           <section class="settings">
             <article class="settings-panel">
               <div class="section-title">
                 <h2>抠背景</h2>
-                <button id="resetMatteBtn" class="ghost compact-btn" type="button">重置</button>
-                <button id="advancedMatteBtn" class="ghost compact-btn" type="button">高级参数</button>
-                <label class="switch">
-                  <input id="matteEnabled" type="checkbox" checked>
-                  <span>启用</span>
-                </label>
+                <div class="matte-title-actions">
+                  <button id="resetMatteBtn" class="ghost compact-btn" type="button">重置</button>
+                  <button id="advancedMatteBtn" class="ghost compact-btn" type="button">高级参数</button>
+                  <label class="switch">
+                    <input id="matteEnabled" type="checkbox" checked>
+                    <span>启用</span>
+                  </label>
+                </div>
               </div>
               <div class="settings-grid">
                 <label>抠图模式
@@ -189,19 +215,25 @@
               <span id="frameEditorInfo">未选择</span>
             </div>
             <div class="frame-editor-hint">方向键微调 1px，Shift + 方向键调整 10px</div>
+            <div class="frame-editor-controls">
+              <button id="framePlayBtn" class="ghost" type="button">播放</button>
+              <label>X
+                <input id="frameOffsetXInput" type="number" value="0">
+              </label>
+              <label>Y
+                <input id="frameOffsetYInput" type="number" value="0">
+              </label>
+              <label>缩放 %
+                <input id="frameScaleInput" type="number" min="10" max="400" step="1" value="100">
+              </label>
+              <label>旋转 °
+                <input id="frameRotationInput" type="number" min="-180" max="180" step="1" value="0">
+              </label>
+              <button id="resetFrameOffsetBtn" class="ghost" type="button">重置本帧</button>
+            </div>
             <div class="frame-editor-layout">
               <canvas id="frameEditorCanvas" width="520" height="300"></canvas>
               <div class="frame-editor-side">
-                <div class="frame-editor-controls">
-                  <button id="framePlayBtn" class="ghost" type="button">播放</button>
-                  <label>X
-                    <input id="frameOffsetXInput" type="number" value="0">
-                  </label>
-                  <label>Y
-                    <input id="frameOffsetYInput" type="number" value="0">
-                  </label>
-                  <button id="resetFrameOffsetBtn" class="ghost" type="button">重置本帧</button>
-                </div>
                 <div id="frameStrip" class="frame-strip"></div>
               </div>
             </div>
@@ -211,10 +243,9 @@
         <aside class="side-panel">
           <div class="matte-preview">
             <div class="section-title">
-              <h2>抠背景预览</h2>
-              <button id="floatPreviewBtn" class="float-preview-btn" type="button">浮窗预览</button>
+              <h2>原视频与裁剪</h2>
             </div>
-            <canvas id="mattePreviewCanvas" width="260" height="180"></canvas>
+            <canvas id="previewCanvas" width="260" height="180"></canvas>
             <div class="preview-controls">
               <label>预览行
                 <input id="previewRowInput" type="number" min="1" max="12" value="1">
@@ -228,7 +259,7 @@
             <div class="section-title">
               <h2>居中对齐</h2>
               <label class="switch">
-                <input id="centerEnabled" type="checkbox" checked>
+                <input id="centerEnabled" type="checkbox">
                 <span>启用</span>
               </label>
             </div>
@@ -280,16 +311,16 @@
             <h2 id="previewModalTitle">抠背景预览</h2>
             <div class="preview-zoom-controls">
               <label class="preview-bg-control">背景
-                <input id="largePreviewBgInput" type="color" value="#111111">
+                <input class="modal-preview-bg-input" type="color" value="#111111">
               </label>
-              <button id="previewCheckerBtn" class="ghost" type="button">棋盘格</button>
+              <button class="ghost modal-preview-checker" type="button">棋盘格</button>
               <button id="zoomOutPreviewBtn" class="ghost" type="button">-</button>
               <button id="zoomResetPreviewBtn" class="ghost" type="button">100%</button>
               <button id="zoomInPreviewBtn" class="ghost" type="button">+</button>
               <button id="closePreviewModalBtn" class="ghost" type="button">关闭</button>
             </div>
           </div>
-          <div id="previewInfo" class="preview-modal-info">当前帧</div>
+          <div class="preview-modal-info">当前帧</div>
           <div id="largePreviewViewport" class="large-preview-viewport">
             <canvas id="largePreviewCanvas" width="900" height="620"></canvas>
           </div>

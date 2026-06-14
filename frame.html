@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Smile 帧动画调整工具</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main class="app-shell frame-tool-app">
+      <header class="topbar">
+        <div class="brand-title">
+          <img class="brand-avatar" src="./头像.png" alt="">
+          <div>
+            <p class="eyebrow">微笑独立游戏开发</p>
+            <h1>帧动画调整工具 <span class="version-badge">V1.0.0</span></h1>
+          </div>
+        </div>
+        <div class="top-actions frame-open-actions">
+          <label class="primary-file">
+            <input id="sheetInput" type="file" accept="image/*">
+            打开单个文件
+          </label>
+          <label class="nav-link frame-multi-file">
+            <input id="framesInput" type="file" accept="image/*" multiple>
+            打开多个文件
+          </label>
+        </div>
+      </header>
+
+      <section class="frame-workspace">
+        <section class="frame-main-panel">
+          <div class="frame-toolbar">
+            <div class="frame-source-settings">
+              <label>行数
+                <input id="rowsInput" type="number" min="1" max="64" value="1">
+              </label>
+              <label>列数
+                <input id="colsInput" type="number" min="1" max="64" value="1">
+              </label>
+              <button id="resplitBtn" class="ghost" type="button" disabled>重新分割</button>
+            </div>
+            <div class="frame-playback-settings">
+              <button id="playBtn" class="success" type="button" disabled>播放</button>
+              <label>帧率
+                <input id="fpsInput" type="number" min="1" max="60" value="8">
+              </label>
+              <button id="previousBtn" class="ghost compact-btn" type="button" disabled>上一帧</button>
+              <button id="nextBtn" class="ghost compact-btn" type="button" disabled>下一帧</button>
+            </div>
+          </div>
+
+          <div id="previewStage" class="frame-preview-stage" tabindex="0">
+            <canvas id="previewCanvas" width="880" height="560"></canvas>
+            <div id="emptyState" class="empty-state">
+              <strong>打开精灵图或多张序列帧</strong>
+              <span>单图需要设置行列数；多图将按文件名顺序排列。也可以直接拖入图片。</span>
+            </div>
+          </div>
+
+          <div class="frame-statusbar">
+            <span id="frameInfo">尚未载入帧</span>
+            <span>拖动预览调整位置，方向键微调 1px，Shift + 方向键调整 10px</span>
+          </div>
+        </section>
+
+        <aside class="frame-inspector">
+          <section class="settings-panel">
+            <div class="section-title">
+              <h2>当前帧调整</h2>
+              <button id="resetFrameBtn" class="ghost compact-btn" type="button" disabled>重置本帧</button>
+            </div>
+            <div class="frame-adjust-grid">
+              <label>X 位移
+                <input id="offsetXInput" type="number" value="0" disabled>
+              </label>
+              <label>Y 位移
+                <input id="offsetYInput" type="number" value="0" disabled>
+              </label>
+              <label>宽度 %
+                <input id="scaleXInput" type="number" min="10" max="400" step="1" value="100" disabled>
+              </label>
+              <label>高度 %
+                <input id="scaleYInput" type="number" min="10" max="400" step="1" value="100" disabled>
+              </label>
+              <label>旋转 °
+                <input id="rotationInput" type="number" min="-180" max="180" step="1" value="0" disabled>
+              </label>
+            </div>
+            <button id="resetAllBtn" class="ghost frame-wide-button" type="button" disabled>重置全部帧</button>
+          </section>
+
+          <section class="settings-panel frame-export-panel">
+            <div class="section-title">
+              <h2>导出</h2>
+              <span id="canvasSizeLabel">0 × 0</span>
+            </div>
+            <label>合成图列数
+              <input id="exportColsInput" type="number" min="1" max="64" value="8">
+            </label>
+            <button id="exportSheetBtn" class="warning frame-wide-button" type="button" disabled>导出合成图</button>
+            <button id="exportCurrentBtn" class="ghost frame-wide-button" type="button" disabled>导出当前帧</button>
+          </section>
+        </aside>
+
+        <section class="frame-list-panel">
+          <div class="section-title">
+            <div>
+              <h2>帧列表</h2>
+              <p>按住帧卡片拖动即可调整播放与导出顺序</p>
+            </div>
+            <span id="frameCount">0 帧</span>
+          </div>
+          <div id="frameList" class="frame-order-list">
+            <div class="frame-list-empty">载入图片后，帧会显示在这里。</div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./frame.js"></script>
+  </body>
+</html>

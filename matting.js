@@ -15,6 +15,10 @@ const els = {
   alphaCanvas: $("alphaCanvas"),
   previewBgInput: $("previewBgInput"),
   previewModeButtons: Array.from(document.querySelectorAll("[data-preview-mode]")),
+  maskToolButtons: Array.from(document.querySelectorAll("[data-mask-tool]")),
+  brushSizeInput: $("brushSizeInput2"),
+  brushSizeValue: $("brushSizeValue2"),
+  clearPaintMasksBtn: $("clearPaintMasksBtn"),
   modeInput: $("modeInput"),
   bgColorInput: $("bgColorInput2"),
   sampleColorBtn: $("sampleColorBtn"),
@@ -29,8 +33,12 @@ const els = {
   edgeCleanInput: $("edgeCleanInput2"),
   transparentCleanInput: $("transparentCleanInput2"),
   resetBtn: $("resetBtn"),
+  savePresetBtn: $("savePresetBtn"),
+  deletePresetBtn: $("deletePresetBtn"),
   fileNameInput: $("fileNameInput"),
+  partMinPixelsInput: $("partMinPixelsInput"),
   exportBtn: $("exportBtn"),
+  exportPartsBtn: $("exportPartsBtn"),
   downloadAlphaBtn: $("downloadAlphaBtn"),
 };
 
@@ -51,8 +59,13 @@ const state = {
   dragStart: null,
   dragMoved: false,
   previewMode: "checker",
+  maskTool: "none",
+  maskPainting: false,
+  lastMaskPoint: null,
   protectMask: null,
   protectCount: 0,
+  eraseMask: null,
+  eraseCount: 0,
   processTimer: 0,
   processing: false,
   pendingProcess: false,
@@ -62,6 +75,51 @@ const state = {
 
 const previewSourceCtx = els.previewSourceCanvas.getContext("2d", { willReadFrequently: true });
 const MAX_PREVIEW_PIXELS = 900000;
+const PRESET_STORAGE_KEY = "SmileMattingUserPresetsV1";
+const BUILT_IN_MODES = new Set(["color", "luma-black", "luma-white"]);
+const PRESET_FIELD_IDS = [
+  "modeInput",
+  "bgColorInput",
+  "previewBgInput",
+  "toleranceInput",
+  "softnessInput",
+  "lumaThresholdInput",
+  "lumaSoftnessInput",
+  "alphaCutInput",
+  "alphaGrowInput",
+  "alphaFeatherInput",
+  "despillInput",
+  "edgeCleanInput",
+  "transparentCleanInput",
+  "partMinPixelsInput",
+];
+
+const PARAMETER_CONTROL_IDS = [
+  "modeInput",
+  "bgColorInput",
+  "previewBgInput",
+  "sampleColorBtn",
+  "toleranceInput",
+  "softnessInput",
+  "lumaThresholdInput",
+  "lumaSoftnessInput",
+  "alphaCutInput",
+  "alphaGrowInput",
+  "alphaFeatherInput",
+  "despillInput",
+  "edgeCleanInput",
+  "transparentCleanInput",
+  "partMinPixelsInput",
+  "resetBtn",
+  "savePresetBtn",
+  "deletePresetBtn",
+  "fileNameInput",
+  "exportBtn",
+  "exportPartsBtn",
+  "downloadAlphaBtn",
+  "brushSizeInput",
+  "clearPaintMasksBtn",
+];
 
 const defaults = {
   modeInput: "color",
@@ -77,6 +135,7 @@ const defaults = {
   despillInput: 25,
   edgeCleanInput: 35,
   transparentCleanInput: 80,
+  partMinPixelsInput: 25,
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -103,7 +162,7 @@ function rgbToHex(r, g, b) {
 
 function settings() {
   return {
-    mode: els.modeInput.value,
+    mode: currentMattingMode(),
     bg: hexToRgb(els.bgColorInput.value),
     tolerance: Number(els.toleranceInput.value),
     softness: Number(els.softnessInput.value),
@@ -138,13 +197,14 @@ function updateOutputs() {
 }
 
 function updateModeFields() {
-  const modeGroup = els.modeInput.value === "color" ? "color" : "luma";
+  const modeGroup = currentMattingMode() === "color" ? "color" : "luma";
   for (const label of document.querySelectorAll("[data-mode]")) {
     label.classList.toggle("is-hidden", !label.dataset.mode.split(/\s+/).includes(modeGroup));
   }
-  els.sampleColorBtn.disabled = modeGroup !== "color";
+  els.sampleColorBtn.disabled = !state.image || modeGroup !== "color";
   els.sampleColorBtn.classList.toggle("is-active", state.sampling);
   els.sampleColorBtn.textContent = state.sampling ? "点击预览取样" : "从图片取样";
+  updatePresetActions();
 }
 
 function resetSettings() {
@@ -153,7 +213,155 @@ function resetSettings() {
   }
   state.sampling = false;
   setPreviewMode("checker");
+  setMaskToolSelection("none");
   updateOutputs();
+}
+
+function setParameterControlsEnabled(enabled) {
+  for (const id of PARAMETER_CONTROL_IDS) {
+    if (!els[id]) continue;
+    els[id].disabled = !enabled;
+  }
+  for (const button of els.previewModeButtons) button.disabled = !enabled;
+  for (const button of els.maskToolButtons) button.disabled = !enabled;
+  updateModeFields();
+}
+
+function currentMattingMode() {
+  const option = els.modeInput.selectedOptions[0];
+  return option?.dataset.mode || els.modeInput.value;
+}
+
+function selectedPresetId() {
+  return els.modeInput.selectedOptions[0]?.dataset.presetId || "";
+}
+
+function loadUserPresets() {
+  try {
+    const presets = JSON.parse(localStorage.getItem(PRESET_STORAGE_KEY) || "[]");
+    return Array.isArray(presets) ? presets.filter((preset) => preset && preset.id && preset.name && preset.values) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveUserPresets(presets) {
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+}
+
+function renderPresetOptions(selectedValue = els.modeInput.value) {
+  for (const group of Array.from(els.modeInput.querySelectorAll("[data-preset-group]"))) {
+    group.remove();
+  }
+  const presets = loadUserPresets();
+  if (presets.length) {
+    const group = document.createElement("optgroup");
+    group.label = "用户预设";
+    group.dataset.presetGroup = "user";
+    for (const preset of presets) {
+      const option = document.createElement("option");
+      option.value = presetOptionValue(preset.id);
+      option.textContent = preset.name;
+      option.dataset.presetId = preset.id;
+      option.dataset.mode = preset.values.modeInput || "color";
+      group.append(option);
+    }
+    els.modeInput.append(group);
+  }
+  els.modeInput.value = selectedValue;
+  if (!els.modeInput.value) els.modeInput.value = "color";
+  updatePresetActions();
+}
+
+function presetOptionValue(id) {
+  return `preset:${id}`;
+}
+
+function capturePresetValues() {
+  const values = {};
+  for (const id of PRESET_FIELD_IDS) {
+    if (id === "modeInput") values[id] = currentMattingMode();
+    else values[id] = els[id].value;
+  }
+  values.previewMode = state.previewMode;
+  values.maskTool = state.maskTool;
+  return values;
+}
+
+function applyPresetValues(values) {
+  for (const id of PRESET_FIELD_IDS) {
+    if (id === "modeInput" || !(id in values) || !els[id]) continue;
+    els[id].value = values[id];
+  }
+  setPreviewMode(values.previewMode || "checker");
+  setMaskToolSelection(values.maskTool || "none");
+  updateOutputs();
+}
+
+function handleModeSelection() {
+  const preset = loadUserPresets().find((item) => item.id === selectedPresetId());
+  if (preset) {
+    const option = els.modeInput.selectedOptions[0];
+    if (option) option.dataset.mode = preset.values.modeInput || "color";
+    applyPresetValues(preset.values);
+    return;
+  }
+  updateOutputs();
+}
+
+function saveCurrentPreset() {
+  const activePresetId = selectedPresetId();
+  const presets = loadUserPresets();
+  const activePreset = presets.find((preset) => preset.id === activePresetId);
+  if (activePreset) {
+    if (!confirm(`覆盖预设“${activePreset.name}”？`)) return;
+    const preset = {
+      ...activePreset,
+      values: capturePresetValues(),
+    };
+    saveUserPresets(presets.map((item) => (item.id === activePreset.id ? preset : item)));
+    renderPresetOptions(presetOptionValue(preset.id));
+    updateModeFields();
+    return;
+  }
+
+  const name = prompt("填写预设名字", "我的预设");
+  if (!name || !name.trim()) return;
+
+  const trimmedName = name.trim();
+  const existing = presets.find((preset) => preset.name === trimmedName);
+  if (existing && !confirm(`已存在预设“${trimmedName}”，是否覆盖？`)) return;
+  const preset = {
+    id: existing?.id || `preset-${Date.now()}`,
+    name: trimmedName,
+    values: capturePresetValues(),
+  };
+
+  const nextPresets = existing
+    ? presets.map((item) => (item.id === existing.id ? preset : item))
+    : [...presets, preset];
+  saveUserPresets(nextPresets);
+  renderPresetOptions(presetOptionValue(preset.id));
+  updateModeFields();
+}
+
+function deleteCurrentPreset() {
+  const activePresetId = selectedPresetId();
+  if (!activePresetId) return;
+  const presets = loadUserPresets();
+  const activePreset = presets.find((preset) => preset.id === activePresetId);
+  if (!activePreset) return;
+  if (!confirm(`删除预设“${activePreset.name}”？`)) return;
+
+  saveUserPresets(presets.filter((preset) => preset.id !== activePresetId));
+  renderPresetOptions(activePreset.values.modeInput && BUILT_IN_MODES.has(activePreset.values.modeInput) ? activePreset.values.modeInput : "color");
+  updateOutputs();
+}
+
+function updatePresetActions() {
+  const customSelected = Boolean(selectedPresetId());
+  els.deletePresetBtn.classList.toggle("is-hidden", !customSelected);
+  els.deletePresetBtn.disabled = !state.image || !customSelected;
 }
 
 function setCanvasSize(width, height) {
@@ -173,6 +381,7 @@ function setImageFile(file) {
   const img = new Image();
   img.onload = () => {
     state.image = img;
+    setParameterControlsEnabled(true);
     state.sourceName = safeFileName(trimExtension(file.name), "SmileMatting");
     els.fileNameInput.value = `${state.sourceName}_matte`;
     els.imagePath.textContent = file.webkitRelativePath || file.name;
@@ -182,6 +391,8 @@ function setImageFile(file) {
     sourceCtx.drawImage(img, 0, 0);
     state.protectMask = new Uint8Array(img.naturalWidth * img.naturalHeight);
     state.protectCount = 0;
+    state.eraseMask = new Uint8Array(img.naturalWidth * img.naturalHeight);
+    state.eraseCount = 0;
     previewSourceCtx.imageSmoothingEnabled = true;
     previewSourceCtx.clearRect(0, 0, els.previewSourceCanvas.width, els.previewSourceCanvas.height);
     previewSourceCtx.drawImage(img, 0, 0, els.previewSourceCanvas.width, els.previewSourceCanvas.height);
@@ -342,6 +553,7 @@ function makeMattedImage(optionsOverride = {}) {
   if (options.edgeClean > 0) cleanEdgeColor(data, width, height, options.edgeClean);
   if (options.transparentClean > 0) cleanTransparentPixels(data, options.alphaCut, options.transparentClean);
   applyProtectMask(data, sourceData, width, height, optionsOverride.preview);
+  applyEraseMask(data, width, height, optionsOverride.preview);
   return image;
 }
 
@@ -358,6 +570,14 @@ function applyProtectMask(data, sourceData, width, height, preview = false) {
   }
 }
 
+function applyEraseMask(data, width, height, preview = false) {
+  if (!state.eraseMask || !state.eraseCount) return;
+  for (let p = 0; p < width * height; p++) {
+    const maskIndex = preview ? previewToSourceIndex(p, width, height) : p;
+    if (state.eraseMask[maskIndex]) data[p * 4 + 3] = 0;
+  }
+}
+
 function previewToSourceIndex(index, previewWidth, previewHeight) {
   const x = index % previewWidth;
   const y = Math.floor(index / previewWidth);
@@ -370,15 +590,22 @@ function drawProtectOverlay() {
   const canvas = els.protectCanvas;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (!state.protectMask || !state.protectCount) return;
+  if ((!state.protectMask || !state.protectCount) && (!state.eraseMask || !state.eraseCount)) return;
   const image = ctx.createImageData(canvas.width, canvas.height);
   for (let p = 0; p < canvas.width * canvas.height; p++) {
-    if (!state.protectMask[previewToSourceIndex(p, canvas.width, canvas.height)]) continue;
+    const maskIndex = previewToSourceIndex(p, canvas.width, canvas.height);
     const i = p * 4;
-    image.data[i] = 25;
-    image.data[i + 1] = 190;
-    image.data[i + 2] = 255;
-    image.data[i + 3] = 72;
+    if (state.eraseMask && state.eraseMask[maskIndex]) {
+      image.data[i] = 255;
+      image.data[i + 1] = 62;
+      image.data[i + 2] = 91;
+      image.data[i + 3] = 96;
+    } else if (state.protectMask && state.protectMask[maskIndex]) {
+      image.data[i] = 25;
+      image.data[i + 1] = 190;
+      image.data[i + 2] = 255;
+      image.data[i + 3] = 82;
+    }
   }
   ctx.putImageData(image, 0, 0);
 }
@@ -551,10 +778,101 @@ function eventToImagePoint(event) {
   return { x, y };
 }
 
+function setMaskTool(tool) {
+  setMaskToolSelection(state.maskTool === tool ? "none" : tool);
+}
+
+function setMaskToolSelection(tool) {
+  state.maskTool = ["protect", "erase"].includes(tool) ? tool : "none";
+  state.maskPainting = false;
+  state.lastMaskPoint = null;
+  state.sampling = false;
+  els.imageDropZone.classList.toggle("is-masking", state.maskTool !== "none");
+  for (const button of els.maskToolButtons) {
+    button.classList.toggle("is-active", button.dataset.maskTool === state.maskTool);
+  }
+  updateModeFields();
+}
+
+function ensurePaintMasks() {
+  const size = els.sourceCanvas.width * els.sourceCanvas.height;
+  if (!state.protectMask || state.protectMask.length !== size) {
+    state.protectMask = new Uint8Array(size);
+    state.protectCount = 0;
+  }
+  if (!state.eraseMask || state.eraseMask.length !== size) {
+    state.eraseMask = new Uint8Array(size);
+    state.eraseCount = 0;
+  }
+}
+
+function paintMaskLine(point) {
+  if (!point || state.maskTool === "none") return;
+  ensurePaintMasks();
+  const start = state.lastMaskPoint || point;
+  const brushSize = Math.max(1, Number(els.brushSizeInput.value));
+  const distance = Math.hypot(point.x - start.x, point.y - start.y);
+  const steps = Math.max(1, Math.ceil(distance / Math.max(1, brushSize * 0.22)));
+  for (let step = 0; step <= steps; step++) {
+    const ratio = step / steps;
+    stampMaskCircle(
+      start.x + (point.x - start.x) * ratio,
+      start.y + (point.y - start.y) * ratio,
+      brushSize / 2
+    );
+  }
+  state.lastMaskPoint = point;
+  scheduleProcess(35);
+}
+
+function stampMaskCircle(centerX, centerY, radius) {
+  const width = els.sourceCanvas.width;
+  const height = els.sourceCanvas.height;
+  const minX = Math.max(0, Math.floor(centerX - radius));
+  const maxX = Math.min(width - 1, Math.ceil(centerX + radius));
+  const minY = Math.max(0, Math.floor(centerY - radius));
+  const maxY = Math.min(height - 1, Math.ceil(centerY + radius));
+  const radiusSquared = radius * radius;
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const dx = x - centerX;
+      const dy = y - centerY;
+      if (dx * dx + dy * dy > radiusSquared) continue;
+      const index = y * width + x;
+      if (state.maskTool === "protect") {
+        if (!state.protectMask[index]) state.protectCount++;
+        state.protectMask[index] = 1;
+        if (state.eraseMask[index]) {
+          state.eraseMask[index] = 0;
+          state.eraseCount--;
+        }
+      } else {
+        if (!state.eraseMask[index]) state.eraseCount++;
+        state.eraseMask[index] = 1;
+        if (state.protectMask[index]) {
+          state.protectMask[index] = 0;
+          state.protectCount--;
+        }
+      }
+    }
+  }
+}
+
+function clearPaintMasks() {
+  if (!state.image) return;
+  ensurePaintMasks();
+  state.protectMask.fill(0);
+  state.eraseMask.fill(0);
+  state.protectCount = 0;
+  state.eraseCount = 0;
+  scheduleProcess();
+}
+
 function toggleProtectedComponent(event) {
   event.preventDefault();
   event.stopPropagation();
-  if (!state.image || state.sampling) return;
+  if (!state.image || state.sampling || state.maskTool !== "none") return;
   const point = eventToImagePoint(event);
   if (!point) return;
   const width = els.sourceCanvas.width;
@@ -580,6 +898,10 @@ function toggleProtectedComponent(event) {
   for (const index of fillRegionHoles(region, width, height)) {
     if (!state.protectMask[index]) state.protectCount++;
     state.protectMask[index] = 1;
+    if (state.eraseMask && state.eraseMask[index]) {
+      state.eraseMask[index] = 0;
+      state.eraseCount--;
+    }
   }
   scheduleProcess();
 }
@@ -757,9 +1079,224 @@ function makeAlphaCanvas() {
   return canvas;
 }
 
+function makeComponentCanvas(image, component) {
+  const width = component.maxX - component.minX + 1;
+  const height = component.maxY - component.minY + 1;
+  const output = new ImageData(width, height);
+  for (const sourceIndex of component.pixels) {
+    const sx = sourceIndex % image.width;
+    const sy = Math.floor(sourceIndex / image.width);
+    const sourceOffset = sourceIndex * 4;
+    const targetOffset = ((sy - component.minY) * width + (sx - component.minX)) * 4;
+    output.data[targetOffset] = image.data[sourceOffset];
+    output.data[targetOffset + 1] = image.data[sourceOffset + 1];
+    output.data[targetOffset + 2] = image.data[sourceOffset + 2];
+    output.data[targetOffset + 3] = image.data[sourceOffset + 3];
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext("2d").putImageData(output, 0, 0);
+  return canvas;
+}
+
+function findAlphaComponents(image, minAlpha = 1) {
+  const { width, height, data } = image;
+  const visited = new Uint8Array(width * height);
+  const components = [];
+
+  for (let start = 0; start < visited.length; start++) {
+    if (visited[start] || data[start * 4 + 3] < minAlpha) continue;
+    const stack = [start];
+    const pixels = [];
+    let minX = width;
+    let minY = height;
+    let maxX = 0;
+    let maxY = 0;
+    visited[start] = 1;
+
+    while (stack.length) {
+      const index = stack.pop();
+      pixels.push(index);
+      const x = index % width;
+      const y = Math.floor(index / width);
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+
+      if (x > 0) pushIfVisible(index - 1, stack);
+      if (x < width - 1) pushIfVisible(index + 1, stack);
+      if (y > 0) pushIfVisible(index - width, stack);
+      if (y < height - 1) pushIfVisible(index + width, stack);
+    }
+
+    components.push({ pixels, minX, minY, maxX, maxY });
+  }
+
+  return sortComponentsForExport(components);
+
+  function pushIfVisible(index, stack) {
+    if (visited[index] || data[index * 4 + 3] < minAlpha) return;
+    visited[index] = 1;
+    stack.push(index);
+  }
+}
+
+function sortComponentsForExport(components) {
+  const heights = components
+    .map((component) => component.maxY - component.minY + 1)
+    .sort((a, b) => a - b);
+  const medianHeight = heights.length ? heights[Math.floor(heights.length / 2)] : 32;
+  const rowTolerance = Math.max(24, medianHeight * 0.9);
+  const sortedByY = components.slice().sort((a, b) => (
+    (componentCenterY(a) - componentCenterY(b)) || (a.minX - b.minX)
+  ));
+  const rows = [];
+
+  for (const component of sortedByY) {
+    const centerY = componentCenterY(component);
+    const row = rows.find((candidate) => Math.abs(centerY - candidate.centerY) <= rowTolerance);
+    if (row) {
+      row.items.push(component);
+      row.centerY = row.items.reduce((sum, item) => sum + componentCenterY(item), 0) / row.items.length;
+    } else {
+      rows.push({
+        items: [component],
+        centerY,
+      });
+    }
+  }
+
+  rows.sort((a, b) => a.centerY - b.centerY);
+  return rows.flatMap((row) => row.items.sort((a, b) => (a.minX - b.minX) || (a.minY - b.minY)));
+}
+
+function componentCenterY(component) {
+  return (component.minY + component.maxY) / 2;
+}
+
 function exportResult() {
   if (!state.image) return;
   downloadCanvas(makeOutputCanvas(), `${safeFileName(els.fileNameInput.value)}.png`);
+}
+function openExportDirectoryStore() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("SmileMattingExportDirectory", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("handles");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readStoredExportDirectory() {
+  try {
+    const db = await openExportDirectoryStore();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction("handles", "readonly");
+      const request = tx.objectStore("handles").get("lastDirectory");
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+      tx.oncomplete = () => db.close();
+      tx.onerror = () => db.close();
+    });
+  } catch (error) {
+    console.warn("Read export directory failed:", error);
+    return null;
+  }
+}
+
+async function saveExportDirectory(handle) {
+  try {
+    const db = await openExportDirectoryStore();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("handles", "readwrite");
+      tx.objectStore("handles").put(handle, "lastDirectory");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (error) {
+    console.warn("Save export directory failed:", error);
+  }
+}
+
+async function getExportDirectoryHandle() {
+  const storedHandle = await readStoredExportDirectory();
+  const pickerOptions = { mode: "readwrite", id: "matting-parts-export" };
+  if (storedHandle) pickerOptions.startIn = storedHandle;
+
+  try {
+    const selectedHandle = await window.showDirectoryPicker(pickerOptions);
+    await saveExportDirectory(selectedHandle);
+    return selectedHandle;
+  } catch (error) {
+    if (error && error.name === "AbortError") return null;
+    if (storedHandle) {
+      try {
+        const selectedHandle = await window.showDirectoryPicker({ mode: "readwrite", id: "matting-parts-export" });
+        await saveExportDirectory(selectedHandle);
+        return selectedHandle;
+      } catch (retryError) {
+        if (retryError && retryError.name === "AbortError") return null;
+      }
+    }
+    setExportPartsStatus("无法打开目录");
+    return null;
+  }
+}
+
+async function exportParts() {
+  if (!state.image) return;
+  if (!("showDirectoryPicker" in window)) {
+    setExportPartsStatus("当前浏览器不支持目录导出");
+    return;
+  }
+
+  const baseName = safeFileName(els.fileNameInput.value);
+  const originalLabel = els.exportPartsBtn.textContent;
+  els.exportPartsBtn.disabled = true;
+
+  try {
+    const selectedDirectory = await getExportDirectoryHandle();
+    if (!selectedDirectory) return;
+    const outputDirectory = await selectedDirectory.getDirectoryHandle(baseName, { create: true });
+    const image = makeMattedImage();
+    const minPixels = Math.max(0, Math.floor(Number(els.partMinPixelsInput.value) || 0));
+    const components = findAlphaComponents(image, 1).filter((component) => component.pixels.length >= minPixels);
+    if (!components.length) {
+      setExportPartsStatus("没有可导出的单图", originalLabel);
+      return;
+    }
+
+    for (let i = 0; i < components.length; i++) {
+      els.exportPartsBtn.textContent = `正在导出 ${i + 1}/${components.length}`;
+      const number = String(i + 1).padStart(3, "0");
+      const filename = `${baseName}_part_${number}.png`;
+      const blob = await canvasToBlob(makeComponentCanvas(image, components[i]));
+      if (!blob) continue;
+      const fileHandle = await outputDirectory.getFileHandle(filename, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+    }
+
+    setExportPartsStatus(`已导出 ${components.length} 张`, originalLabel);
+  } catch (error) {
+    console.error("Export parts failed:", error);
+    setExportPartsStatus("导出失败", originalLabel);
+  } finally {
+    els.exportPartsBtn.disabled = false;
+  }
+}
+
+function setExportPartsStatus(message, restoreLabel = "导出单图") {
+  clearTimeout(setExportPartsStatus.timer);
+  els.exportPartsBtn.textContent = message;
+  setExportPartsStatus.timer = setTimeout(() => {
+    els.exportPartsBtn.textContent = restoreLabel;
+  }, 2200);
 }
 
 function exportAlpha() {
@@ -790,6 +1327,14 @@ els.imageDropZone.addEventListener("wheel", (event) => {
 }, { passive: false });
 els.imageDropZone.addEventListener("pointerdown", (event) => {
   if (!state.image || state.sampling || event.detail >= 2) return;
+  if (state.maskTool !== "none") {
+    event.preventDefault();
+    state.maskPainting = true;
+    state.lastMaskPoint = null;
+    els.imageDropZone.setPointerCapture(event.pointerId);
+    paintMaskLine(eventToImagePoint(event));
+    return;
+  }
   state.dragging = true;
   state.dragMoved = false;
   state.dragStart = {
@@ -802,6 +1347,10 @@ els.imageDropZone.addEventListener("pointerdown", (event) => {
   els.imageDropZone.classList.add("is-panning");
 });
 els.imageDropZone.addEventListener("pointermove", (event) => {
+  if (state.maskPainting) {
+    paintMaskLine(eventToImagePoint(event));
+    return;
+  }
   if (!state.dragging || !state.dragStart) return;
   const dx = event.clientX - state.dragStart.x;
   const dy = event.clientY - state.dragStart.y;
@@ -812,6 +1361,15 @@ els.imageDropZone.addEventListener("pointermove", (event) => {
   applyPreviewZoom();
 });
 els.imageDropZone.addEventListener("pointerup", (event) => {
+  if (state.maskPainting) {
+    state.maskPainting = false;
+    state.lastMaskPoint = null;
+    if (els.imageDropZone.hasPointerCapture(event.pointerId)) {
+      els.imageDropZone.releasePointerCapture(event.pointerId);
+    }
+    scheduleProcess(0);
+    return;
+  }
   if (!state.dragging) return;
   state.dragging = false;
   state.dragStart = null;
@@ -819,24 +1377,46 @@ els.imageDropZone.addEventListener("pointerup", (event) => {
   els.imageDropZone.classList.remove("is-panning");
 });
 els.imageDropZone.addEventListener("pointercancel", () => {
+  state.maskPainting = false;
+  state.lastMaskPoint = null;
   state.dragging = false;
   state.dragStart = null;
   els.imageDropZone.classList.remove("is-panning");
 });
 els.sampleColorBtn.addEventListener("click", () => {
+  if (state.maskTool !== "none") setMaskTool(state.maskTool);
   state.sampling = !state.sampling;
   updateModeFields();
 });
+for (const button of els.maskToolButtons) {
+  button.addEventListener("click", () => setMaskTool(button.dataset.maskTool));
+}
+els.brushSizeInput.addEventListener("input", () => {
+  els.brushSizeValue.textContent = els.brushSizeInput.value;
+});
+els.clearPaintMasksBtn.addEventListener("click", clearPaintMasks);
+els.modeInput.addEventListener("change", handleModeSelection);
+els.savePresetBtn.addEventListener("click", saveCurrentPreset);
+els.deletePresetBtn.addEventListener("click", deleteCurrentPreset);
 els.resetBtn.addEventListener("click", resetSettings);
 els.exportBtn.addEventListener("click", exportResult);
+els.exportPartsBtn.addEventListener("click", exportParts);
 els.downloadAlphaBtn.addEventListener("click", exportAlpha);
 for (const button of els.previewModeButtons) {
   button.addEventListener("click", () => setPreviewMode(button.dataset.previewMode));
 }
 
 for (const input of document.querySelectorAll("input, select")) {
-  if (input.type === "file" || input.id === "fileNameInput") continue;
+  if (
+    input.type === "file" ||
+    input.id === "modeInput" ||
+    input.id === "fileNameInput" ||
+    input.id === "partMinPixelsInput" ||
+    input.id === "brushSizeInput2"
+  ) continue;
   input.addEventListener("input", updateOutputs);
 }
 
+renderPresetOptions();
 resetSettings();
+setParameterControlsEnabled(false);

@@ -13,7 +13,7 @@
           <img class="brand-avatar" src="./头像.png" alt="">
           <div>
             <p class="eyebrow">Smile 图片处理</p>
-            <h1>图片抠图工具 <span class="version-badge">V1.1.2版本</span></h1>
+            <h1>图片抠图工具 <span class="version-badge">V1.2.0版本</span></h1>
           </div>
         </div>
         <div class="top-actions">
@@ -30,12 +30,23 @@
             <span>当前图片</span>
             <strong id="imagePath">未选择图片</strong>
             <em id="imageInfo">未载入</em>
-            <em class="protect-hint">双击保护/取消区域</em>
-            <div class="preview-toolbar" aria-label="预览模式">
-              <input id="previewBgInput" class="preview-color is-hidden" type="color" value="#111827" aria-label="预览背景色">
-              <button class="ghost compact-btn preview-mode-btn is-active" type="button" data-preview-mode="checker">透明预览</button>
-              <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="solid">背景预览</button>
-              <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="alpha">Alpha预览</button>
+            <div class="matting-toolbar-row">
+              <div class="mask-paint-toolbar" aria-label="区域涂抹工具">
+                <button class="ghost compact-btn mask-tool-btn" type="button" data-mask-tool="protect">保护区域涂抹</button>
+                <button class="ghost compact-btn mask-tool-btn mask-tool-erase" type="button" data-mask-tool="erase">删除区域涂抹</button>
+                <label class="brush-size-control" title="笔刷大小">
+                  <span>笔刷</span>
+                  <input id="brushSizeInput2" type="range" min="4" max="160" value="48">
+                  <output id="brushSizeValue2">48</output>
+                </label>
+                <button id="clearPaintMasksBtn" class="ghost compact-btn" type="button">清空涂抹</button>
+              </div>
+              <div class="preview-toolbar" aria-label="预览模式">
+                <input id="previewBgInput" class="preview-color is-hidden" type="color" value="#111827" aria-label="预览背景色">
+                <button class="ghost compact-btn preview-mode-btn is-active" type="button" data-preview-mode="checker">透明预览</button>
+                <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="solid">背景预览</button>
+                <button class="ghost compact-btn preview-mode-btn" type="button" data-preview-mode="alpha">Alpha预览</button>
+              </div>
             </div>
           </div>
 
@@ -56,7 +67,11 @@
           <article class="settings-panel side-settings">
             <div class="section-title">
               <h2>抠图参数</h2>
-              <button id="resetBtn" class="ghost compact-btn" type="button">重置</button>
+              <div class="preset-actions">
+                <button id="savePresetBtn" class="ghost compact-btn" type="button">保存预设</button>
+                <button id="deletePresetBtn" class="ghost compact-btn danger-ghost is-hidden" type="button">删除预设</button>
+                <button id="resetBtn" class="ghost compact-btn" type="button">重置</button>
+              </div>
             </div>
             <div class="matting-settings-grid">
               <label>抠图模式
@@ -120,7 +135,11 @@
             <label class="project-name-field">文件名
               <input id="fileNameInput" type="text" value="SmileMatting">
             </label>
+            <label class="project-name-field">忽略小于像素
+              <input id="partMinPixelsInput" type="number" min="0" step="1" value="25">
+            </label>
             <button id="exportBtn" class="success export-folder-wide" type="button">导出透明 PNG</button>
+            <button id="exportPartsBtn" class="ghost export-folder-wide" type="button">导出单图</button>
             <button id="downloadAlphaBtn" class="ghost export-folder-wide" type="button">导出 Alpha 蒙版</button>
           </article>
         </aside>
